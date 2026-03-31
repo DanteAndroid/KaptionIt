@@ -1,4 +1,4 @@
-rootProject.name = "Whisperit"
+rootProject.name = "KaptionIt"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_title">WhisperIt</string>
+    <string name="app_title">KaptionIt</string>
     <string name="action_test">测试</string>
     <string name="action_settings">设置</string>
     <string name="locale_switch_to_en">English</string>
@@ -116,7 +116,7 @@
     <string name="err_vad_download">VAD 模型下载失败：%1$s</string>
     <string name="msg_whisper_line">%1$s</string>
     <string name="err_whisper">语音识别失败（错误码 %1$d）</string>
-    <string name="err_whisper_dll_missing">无法启动语音识别组件 (错误码 %1$d)。Windows 系统缺少必要的运行库。请下载并安装 Visual C++ Redistributable (x64) 后重试。\n下载地址: https://aka.ms/vs/17/release/vc_redist.x64.exe</string>
+    <string name="err_whisper_dll_missing">缺少 Visual C++ 运行库，请安装后重试。\n下载地址: https://aka.ms/vs/17/release/vc_redist.x64.exe</string>
     <string name="err_no_segments">没有识别到有效内容，请重试。</string>
     <string name="err_translate_retry_failed">翻译失败，请重试。</string>
     <string name="msg_skip_translate">跳过翻译…</string>

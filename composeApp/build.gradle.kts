@@ -369,12 +369,12 @@ compose.desktop {
         nativeDistributions {
             modules("java.net.http")
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "Whisperit"
+            packageName = "KaptionIt"
             packageVersion = computedPackageVersion
             appResourcesRootDir.set(project.layout.projectDirectory.dir("native-distribution"))
             macOS {
-                bundleID = "com.danteandroid.whisperit"
-                dockName = "Whisperit" // 专门用于 Dock 栏显示的名字
+                bundleID = "com.danteandroid.kaptionit"
+                dockName = "KaptionIt" // 专门用于 Dock 栏显示的名字
                 iconFile.set(project.file("icons/whisperit.icns"))
                 entitlementsFile.set(project.file("entitlements.plist"))
                 infoPlist {
@@ -416,8 +416,8 @@ afterEvaluate {
     fun JavaExec.configureComposeRunResources() {
         systemProperty("compose.application.resources.dir", nativeDistPath)
         if (isMacOs()) {
-            jvmArgs("-Xdock:icon=$dockIconPath", "-Xdock:name=WhisperIt")
-            systemProperty("apple.awt.application.name", "WhisperIt")
+            jvmArgs("-Xdock:icon=$dockIconPath", "-Xdock:name=KaptionIt")
+            systemProperty("apple.awt.application.name", "KaptionIt")
         }
     }
     tasks.named<JavaExec>("run") {
