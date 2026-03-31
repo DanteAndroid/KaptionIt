@@ -26,37 +26,22 @@
 
 ### Tech stack
 
-- [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) & [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/) (Desktop / JVM)  
-
-### Requirements
-
-- **JDK** compatible with this project (Gradle will use a toolchain if configured; use a recent LTS such as **17+**).  
-- **macOS** (recommended for full features): Xcode / Command Line Tools for building bundled native tools; **Apple Translate** requires macOS and downloaded system translation languages.  
-- **Windows / Linux**: project build scripts support bundling **whisper-cli** (Windows zip) and native helpers where applicable; see `composeApp/build.gradle.kts` for platform-specific tasks.  
+- [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/) (Desktop / JVM)  
 
 ### Build & run
 
 ```bash
-./gradlew :composeApp:compileKotlinJvm   # compile check
-./gradlew :composeApp:run                # run the desktop app
+./gradlew :composeApp:run                # .\gradlew.bat :composeApp:run on Windows
 ```
 
-On Windows:
-
-```bat
-.\gradlew.bat :composeApp:run
-```
-
-### Packaging
-
-Run the following to generate installers (**DMG / MSI / DEB**):
+**Generate installers:**
 
 ```bash
 ./gradlew :composeApp:packageDistributionForCurrentOS
 ```
 
 > [!IMPORTANT]
-> **JDK 17+ with `jpackage` is required.** The default Android Studio JBR may lack it. Set a full JDK (e.g., Temurin) in Gradle settings if needed.
+> **JDK 17+ with `jpackage` is required.** The default Android Studio JBR may lack it. Set a full JDK (e.g., zulu) in Gradle settings if needed.
 
 ### License
 
@@ -80,30 +65,15 @@ This project is licensed under [**CC BY-ND 4.0**](https://creativecommons.org/li
 
 ### 技术栈
 
-- [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) & [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/) (Desktop / JVM)
-
-### 环境要求
-
-- **JDK**：建议使用 **17+** 版本的 JDK（Gradle 将根据配置自动识别，建议使用最近的 LTS 版本）。
-- **macOS**：推荐系统，支持完整功能。打包原生工具需安装 Xcode 或命令行工具；**Apple 翻译** 功能需要 macOS 系统支持并下载相应的语言包。
-- **Windows / Linux**：构建脚本支持打包 **whisper-cli** 及相关辅助工具；详情请参阅 `composeApp/build.gradle.kts`。
+- [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/) (Desktop / JVM)
 
 ### 运行与构建
 
 ```bash
-./gradlew :composeApp:compileKotlinJvm   # 编译检查
-./gradlew :composeApp:run                # 运行桌面应用
+./gradlew :composeApp:run                # Windows 用 .\gradlew.bat :composeApp:run
 ```
 
-Windows 环境下：
-
-```bat
-.\gradlew.bat :composeApp:run
-```
-
-### 应用打包
-
-执行以下命令生成对应系统的安装包（**DMG / MSI / DEB**）：
+**生成安装包：**
 
 ```bash
 ./gradlew :composeApp:packageDistributionForCurrentOS
