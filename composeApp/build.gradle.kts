@@ -1,13 +1,9 @@
-import java.io.File
+import kaptionit.tasks.GenerateBundledNativeDistributionPathTask
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.zip.ZipFile
-import org.gradle.api.GradleException
-import org.gradle.api.tasks.Exec
-import org.gradle.api.tasks.JavaExec
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import whisperit.tasks.GenerateBundledNativeDistributionPathTask
 
 private val whisperCppTag = "v1.8.4"
 private val whisperWinZipUrl =
@@ -71,7 +67,7 @@ kotlin {
             implementation(libs.kotlin.test)
         }
         jvmMain {
-            kotlin.srcDir(layout.buildDirectory.dir("generated/whisperit/kotlin"))
+            kotlin.srcDir(layout.buildDirectory.dir("generated/kaptionit/kotlin"))
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutinesSwing)
@@ -96,20 +92,21 @@ val generateBundledNativeDistributionPath =
         )
         outputFile.set(
             layout.buildDirectory.file(
-                "generated/whisperit/kotlin/com/danteandroid/whisperit/bundled/BundledNativeDistributionPath.kt",
+                "generated/kaptionit/kotlin/com/danteandroid/kaptionit/bundled/BundledNativeDistributionPath.kt",
             ),
         )
     }
 
 val generateBuildConfig = tasks.register("generateBuildConfig") {
-    val outDir = layout.buildDirectory.dir("generated/whisperit/kotlin/com/danteandroid/whisperit/bundled")
+    val outDir =
+        layout.buildDirectory.dir("generated/kaptionit/kotlin/com/danteandroid/kaptionit/bundled")
     outputs.dir(outDir)
     val versionText = computedPackageVersion
     doLast {
         val f = outDir.get().file("BuildConfig.kt").asFile
         f.parentFile.mkdirs()
         f.writeText("""
-            package com.danteandroid.whisperit.bundled
+            package com.danteandroid.kaptionit.bundled
             
             object BuildConfig {
                 const val APP_VERSION = "$versionText"
@@ -363,7 +360,7 @@ val syncBundledWhisperCli = tasks.register("syncBundledWhisperCli") {
 
 compose.desktop {
     application {
-        mainClass = "com.danteandroid.whisperit.MainKt"
+        mainClass = "com.danteandroid.kaptionit.MainKt"
         jvmArgs("-Djava.net.useSystemProxies=true")
 
         nativeDistributions {
@@ -375,7 +372,7 @@ compose.desktop {
             macOS {
                 bundleID = "com.danteandroid.kaptionit"
                 dockName = "KaptionIt" // 专门用于 Dock 栏显示的名字
-                iconFile.set(project.file("icons/whisperit.icns"))
+                iconFile.set(project.file("icons/kaptionit.icns"))
                 entitlementsFile.set(project.file("entitlements.plist"))
                 infoPlist {
                     extraKeysRawXml = """
@@ -391,12 +388,12 @@ compose.desktop {
                 }
             }
             windows {
-                iconFile.set(project.file("icons/whisperit.ico"))
+                iconFile.set(project.file("icons/kaptionit.ico"))
                 shortcut = true
                 menu = true
             }
             linux {
-                iconFile.set(project.file("icons/whisperit_linux.png"))
+                iconFile.set(project.file("icons/kaptionit_linux.png"))
             }
         }
     }
@@ -412,7 +409,7 @@ afterEvaluate {
     }
     val nativeDistPath = layout.projectDirectory.dir("native-distribution/common").asFile.absolutePath
     val dockIconPath =
-        layout.projectDirectory.file("src/jvmMain/composeResources/drawable/whisperit_app_icon.png").asFile.absolutePath
+        layout.projectDirectory.file("src/jvmMain/composeResources/drawable/kaptionit_app_icon.png").asFile.absolutePath
     fun JavaExec.configureComposeRunResources() {
         systemProperty("compose.application.resources.dir", nativeDistPath)
         if (isMacOs()) {

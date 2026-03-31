@@ -54,7 +54,7 @@ captures/
 # --- Node (if any tooling) ---
 node_modules/
 
-# --- WhisperIt: generated / downloaded native bundles (do not commit binaries) ---
+# --- KaptionIt: generated / downloaded native bundles (do not commit binaries) ---
 composeApp/native-distribution/
 native/bundled/ffmpeg
 native/bundled/whisper-cli
