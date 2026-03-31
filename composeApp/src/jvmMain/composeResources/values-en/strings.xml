@@ -117,6 +117,7 @@
     <string name="err_vad_download">VAD model download failed: %1$s</string>
     <string name="msg_whisper_line">%1$s</string>
     <string name="err_whisper">Speech recognition failed (code %1$d)</string>
+    <string name="err_whisper_dll_missing">Failed to start whisper-cli (Error %1$d). Your Windows system is missing the required library. Please install the Visual C++ Redistributable (x64) and try again.\nDownload: https://aka.ms/vs/17/release/vc_redist.x64.exe</string>
     <string name="err_no_segments">No usable transcript. Please retry.</string>
     <string name="err_translate_retry_failed">Translation failed. Please retry.</string>
     <string name="msg_skip_translate">Skipping translation…</string>

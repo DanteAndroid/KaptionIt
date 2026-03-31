@@ -368,6 +368,8 @@ compose.desktop {
             }
             windows {
                 iconFile.set(project.file("icons/whisperit.ico"))
+                shortcut = true
+                menu = true
             }
             linux {
                 iconFile.set(project.file("icons/whisperit_linux.png"))

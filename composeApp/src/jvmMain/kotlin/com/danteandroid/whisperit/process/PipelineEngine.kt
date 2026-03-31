@@ -109,7 +109,11 @@ object PipelineEngine {
                         onMessage = { msg -> listener.onProgress(msg) }
                     )
                     if (whisperCode != 0) {
-                        error(JvmResourceStrings.text(Res.string.err_whisper, whisperCode))
+                        if (whisperCode == -1073741515) {
+                            error(JvmResourceStrings.text(Res.string.err_whisper_dll_missing, whisperCode))
+                        } else {
+                            error(JvmResourceStrings.text(Res.string.err_whisper, whisperCode))
+                        }
                     }
                     val jsonText = withContext(Dispatchers.IO) {
                         Files.readString(java.nio.file.Paths.get("$outBase.json"))
