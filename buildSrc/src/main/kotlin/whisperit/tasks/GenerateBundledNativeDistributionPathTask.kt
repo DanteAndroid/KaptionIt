@@ -1,4 +1,4 @@
-package kaptionit.tasks
+package transbee.tasks
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
@@ -24,7 +24,7 @@ abstract class GenerateBundledNativeDistributionPathTask : DefaultTask() {
         f.parentFile.mkdirs()
         f.writeText(
             buildString {
-                appendLine("package com.danteandroid.kaptionit.bundled")
+                appendLine("package com.danteandroid.transbee.bundled")
                 appendLine()
                 appendLine("internal object BundledNativeDistributionPath {")
                 appendLine("    const val ABSOLUTE_PATH: String = $literal")

@@ -1,6 +1,6 @@
-package com.danteandroid.kaptionit.whisper
+package com.danteandroid.transbee.whisper
 
-import com.danteandroid.kaptionit.utils.HttpDownloader
+import com.danteandroid.transbee.utils.HttpDownloader
 import java.io.File
 import java.time.Duration
 

@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.whisper
+package com.danteandroid.transbee.whisper
 
 import java.io.File
 

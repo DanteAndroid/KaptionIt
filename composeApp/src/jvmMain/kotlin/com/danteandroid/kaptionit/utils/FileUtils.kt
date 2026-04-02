@@ -1,7 +1,7 @@
-package com.danteandroid.kaptionit.utils
+package com.danteandroid.transbee.utils
 
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.dialog_open_video_file
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.dialog_open_video_file
 import java.awt.FileDialog
 import java.awt.Frame
 import java.awt.GraphicsEnvironment

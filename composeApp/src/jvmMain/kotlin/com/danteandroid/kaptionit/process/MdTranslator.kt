@@ -1,14 +1,15 @@
-package com.danteandroid.kaptionit.process
+package com.danteandroid.transbee.process
 
-import com.danteandroid.kaptionit.settings.PdfTranslateFormat
-import com.danteandroid.kaptionit.settings.ToolingSettings
-import com.danteandroid.kaptionit.translate.AppleTranslateBinary
-import com.danteandroid.kaptionit.translate.AppleTranslator
-import com.danteandroid.kaptionit.translate.DeepLTranslator
-import com.danteandroid.kaptionit.translate.GoogleTranslator
-import com.danteandroid.kaptionit.translate.OpenAiTranslator
-import com.danteandroid.kaptionit.translate.TargetLanguageMapper
-import com.danteandroid.kaptionit.translate.TranslationEngine
+import com.danteandroid.transbee.process.MdTranslator.translateParagraphs
+import com.danteandroid.transbee.settings.PdfTranslateFormat
+import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.translate.AppleTranslateBinary
+import com.danteandroid.transbee.translate.AppleTranslator
+import com.danteandroid.transbee.translate.DeepLTranslator
+import com.danteandroid.transbee.translate.GoogleTranslator
+import com.danteandroid.transbee.translate.OpenAiTranslator
+import com.danteandroid.transbee.translate.TargetLanguageMapper
+import com.danteandroid.transbee.translate.TranslationEngine
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -52,6 +53,10 @@ object MdTranslator {
         if (!trimmed.any { Character.isLetter(it) }) return true
         return false
     }
+
+    /** 需翻译的段落数（与 [translateParagraphs] 内统计一致） */
+    fun countTranslatableParagraphs(paragraphs: List<String>): Int =
+        paragraphs.count { !shouldSkip(it) }
 
     /**
      * 翻译段落列表。并发批量提交，在不超时的前提下最大化性能。
@@ -114,7 +119,10 @@ object MdTranslator {
                 chunkSize = 10
                 concurrency = 2
                 val translator = OpenAiTranslator(
-                    apiKey = cfg.openAiKey, model = cfg.openAiModel, baseUrl = cfg.openAiBaseUrl,
+                    apiKey = cfg.openAiKey,
+                    model = cfg.openAiModel,
+                    baseUrl = cfg.openAiBaseUrl,
+                    enforceSubtitleBatchRules = false,
                 )
                 translateChunk = { texts -> translator.translateBatch(texts, cfg.targetLanguage) }
             }

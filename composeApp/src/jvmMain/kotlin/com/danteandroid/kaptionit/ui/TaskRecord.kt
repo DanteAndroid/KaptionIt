@@ -1,6 +1,6 @@
-package com.danteandroid.kaptionit.ui
+package com.danteandroid.transbee.ui
 
-import com.danteandroid.kaptionit.process.PipelinePhase
+import com.danteandroid.transbee.process.PipelinePhase
 
 data class TaskRecord(
     val id: String,

@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.ui
+package com.danteandroid.transbee.ui
 
 data class TranslationTaskStats(
     /** 提取音频 + Whisper 识别（命中缓存时为 0） */

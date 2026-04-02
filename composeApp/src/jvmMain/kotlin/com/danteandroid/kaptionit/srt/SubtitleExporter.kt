@@ -1,6 +1,6 @@
-package com.danteandroid.kaptionit.srt
+package com.danteandroid.transbee.srt
 
-import com.danteandroid.kaptionit.whisper.TranscriptSegment
+import com.danteandroid.transbee.whisper.TranscriptSegment
 
 object SubtitleExporter {
 

@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.process
+package com.danteandroid.transbee.process
 
 enum class PipelinePhase {
     Idle,

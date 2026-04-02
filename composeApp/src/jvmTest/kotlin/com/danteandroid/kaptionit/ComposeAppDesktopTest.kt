@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit
+package com.danteandroid.transbee
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,44 +1,21 @@
-package com.danteandroid.kaptionit.ui
+package com.danteandroid.transbee.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.danteandroid.kaptionit.process.PipelineEngine
-import com.danteandroid.kaptionit.process.PipelineListener
-import com.danteandroid.kaptionit.process.PipelinePhase
-import com.danteandroid.kaptionit.process.isCancellableByStopAll
-import com.danteandroid.kaptionit.settings.ToolingSettings
-import com.danteandroid.kaptionit.settings.ToolingSettingsStore
-import com.danteandroid.kaptionit.settings.TranscriptionCacheStore
-import com.danteandroid.kaptionit.translate.AppleTranslateBinary
-import com.danteandroid.kaptionit.translate.TranslationEngine
-import com.danteandroid.kaptionit.utils.JvmResourceStrings
-import com.danteandroid.kaptionit.utils.OsUtils
-import com.danteandroid.kaptionit.utils.toReadableByteSize
-import com.danteandroid.kaptionit.whisper.WhisperModelDownloader
-import com.danteandroid.kaptionit.whisper.WhisperModelOption
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.duration_format_min_sec
-import kaptionit.composeapp.generated.resources.duration_format_sec_only
-import kaptionit.composeapp.generated.resources.err_apple_translate_macos_only
-import kaptionit.composeapp.generated.resources.err_apple_translate_missing
-import kaptionit.composeapp.generated.resources.err_deepl_key
-import kaptionit.composeapp.generated.resources.err_file_read
-import kaptionit.composeapp.generated.resources.err_google_key
-import kaptionit.composeapp.generated.resources.err_mineru_token_missing
-import kaptionit.composeapp.generated.resources.err_openai_key
-import kaptionit.composeapp.generated.resources.err_queue_while_downloading
-import kaptionit.composeapp.generated.resources.err_retry_failed
-import kaptionit.composeapp.generated.resources.err_unsupported_file_type
-import kaptionit.composeapp.generated.resources.err_whisper_model_missing
-import kaptionit.composeapp.generated.resources.msg_download_complete
-import kaptionit.composeapp.generated.resources.msg_download_connecting
-import kaptionit.composeapp.generated.resources.msg_download_reconnecting
-import kaptionit.composeapp.generated.resources.msg_download_skipped_local
-import kaptionit.composeapp.generated.resources.msg_total_duration
-import kaptionit.composeapp.generated.resources.phase_cancelled
-import kaptionit.composeapp.generated.resources.phase_done_short
-import kaptionit.composeapp.generated.resources.phase_queued
-import kaptionit.composeapp.generated.resources.warn_start_all_missing_files
+import com.danteandroid.transbee.process.PipelineEngine
+import com.danteandroid.transbee.process.PipelineListener
+import com.danteandroid.transbee.process.PipelinePhase
+import com.danteandroid.transbee.process.isCancellableByStopAll
+import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.settings.ToolingSettingsStore
+import com.danteandroid.transbee.settings.TranscriptionCacheStore
+import com.danteandroid.transbee.translate.AppleTranslateBinary
+import com.danteandroid.transbee.translate.TranslationEngine
+import com.danteandroid.transbee.utils.JvmResourceStrings
+import com.danteandroid.transbee.utils.OsUtils
+import com.danteandroid.transbee.utils.toReadableByteSize
+import com.danteandroid.transbee.whisper.WhisperModelDownloader
+import com.danteandroid.transbee.whisper.WhisperModelOption
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,6 +24,29 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.duration_format_min_sec
+import transbee.composeapp.generated.resources.duration_format_sec_only
+import transbee.composeapp.generated.resources.err_apple_translate_macos_only
+import transbee.composeapp.generated.resources.err_apple_translate_missing
+import transbee.composeapp.generated.resources.err_deepl_key
+import transbee.composeapp.generated.resources.err_file_read
+import transbee.composeapp.generated.resources.err_google_key
+import transbee.composeapp.generated.resources.err_mineru_token_missing
+import transbee.composeapp.generated.resources.err_openai_key
+import transbee.composeapp.generated.resources.err_queue_while_downloading
+import transbee.composeapp.generated.resources.err_retry_failed
+import transbee.composeapp.generated.resources.err_unsupported_file_type
+import transbee.composeapp.generated.resources.err_whisper_model_missing
+import transbee.composeapp.generated.resources.msg_download_complete
+import transbee.composeapp.generated.resources.msg_download_connecting
+import transbee.composeapp.generated.resources.msg_download_reconnecting
+import transbee.composeapp.generated.resources.msg_download_skipped_local
+import transbee.composeapp.generated.resources.msg_total_duration
+import transbee.composeapp.generated.resources.phase_cancelled
+import transbee.composeapp.generated.resources.phase_done_short
+import transbee.composeapp.generated.resources.phase_queued
+import transbee.composeapp.generated.resources.warn_start_all_missing_files
 import java.io.File
 import java.util.UUID
 
@@ -154,8 +154,8 @@ class PipelineViewModel : ViewModel() {
         modelDownloadJob?.cancel()
     }
 
-    private fun validateTranslationEngine(cfg: ToolingSettings): String? =
-        when (cfg.translationEngine) {
+    fun missingKeyMessageForEngine(engine: TranslationEngine, cfg: ToolingSettings): String? =
+        when (engine) {
             TranslationEngine.APPLE -> {
                 when {
                     !OsUtils.isMacOs() -> JvmResourceStrings.text(Res.string.err_apple_translate_macos_only)
@@ -166,31 +166,37 @@ class PipelineViewModel : ViewModel() {
                 }
             }
 
-            TranslationEngine.GOOGLE -> cfg.googleApiKey.ifBlank {
-                return JvmResourceStrings.text(
-                    Res.string.err_google_key
-                )
-            }.let { null }
+            TranslationEngine.GOOGLE ->
+                if (cfg.googleApiKey.isBlank()) JvmResourceStrings.text(Res.string.err_google_key) else null
 
-            TranslationEngine.DEEPL -> if (cfg.deeplApiKey.isBlank()) JvmResourceStrings.text(Res.string.err_deepl_key) else null
-            TranslationEngine.OPENAI -> if (cfg.openAiKey.isBlank()) JvmResourceStrings.text(Res.string.err_openai_key) else null
+            TranslationEngine.DEEPL ->
+                if (cfg.deeplApiKey.isBlank()) JvmResourceStrings.text(Res.string.err_deepl_key) else null
+
+            TranslationEngine.OPENAI ->
+                if (cfg.openAiKey.isBlank()) JvmResourceStrings.text(Res.string.err_openai_key) else null
         }
 
-    fun onFilesSelected(files: List<File>) {
-        if (files.isEmpty()) return
+    private fun validateTranslationEngine(cfg: ToolingSettings): String? =
+        missingKeyMessageForEngine(cfg.translationEngine, cfg)
+
+    fun onFilesSelected(files: List<File>): List<String> {
+        if (files.isEmpty()) return emptyList()
         val isSingleFileBatch = files.size == 1
+        val errors = mutableListOf<String>()
         files.forEach { file ->
-            val taskId = enqueuePipeline(file)
-            if (isSingleFileBatch && taskId != null) {
-                lastAutoOpenTaskId = taskId
+            val result = enqueuePipeline(file)
+            if (isTaskId(result)) {
+                if (isSingleFileBatch) lastAutoOpenTaskId = result
+            } else {
+                errors.add(result)
             }
         }
+        return errors
     }
 
+    private fun isTaskId(s: String): Boolean = runCatching { UUID.fromString(s) }.isSuccess
+
     fun enqueuePipeline(videoFile: File): String {
-        if (_modelDownload.value.active) {
-            return JvmResourceStrings.text(Res.string.err_queue_while_downloading)
-        }
         if (!videoFile.isFile) {
             return JvmResourceStrings.text(Res.string.err_file_read, videoFile.path)
         }
@@ -210,7 +216,11 @@ class PipelineViewModel : ViewModel() {
             }
 
             ext in mediaExtensions -> {
-                if (cfg.whisperModel.isBlank()) {
+                if (_modelDownload.value.active) {
+                    return JvmResourceStrings.text(Res.string.err_queue_while_downloading)
+                }
+                val modelPath = cfg.whisperModel.trim()
+                if (modelPath.isEmpty() || !File(modelPath).isFile) {
                     return JvmResourceStrings.text(Res.string.err_whisper_model_missing)
                 }
                 validateTranslationEngine(cfg)?.let { return it }
@@ -454,7 +464,7 @@ class PipelineViewModel : ViewModel() {
                         translationStats = translationStats
                     )
                     if (id == lastAutoOpenTaskId && updated.outputPath != null) {
-                        OsUtils.openFile(File(updated.outputPath!!))
+                        OsUtils.openFile(File(updated.outputPath))
                         lastAutoOpenTaskId = null
                     }
                     updated
@@ -476,6 +486,21 @@ class PipelineViewModel : ViewModel() {
             }
         }
 
-        PipelineEngine.execute(id, file, cfg, listener)
+        try {
+            PipelineEngine.execute(id, file, cfg, listener)
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            System.err.println("Pipeline uncaught [Task $id, File ${file.name}]: ${e.message}")
+            updateTaskFromPipeline(id) {
+                it.copy(
+                    phase = PipelinePhase.Failed,
+                    message = "",
+                    progress = 0f,
+                    progressIndeterminate = false,
+                    error = e.message ?: e.toString(),
+                    translationStats = null,
+                )
+            }
+        }
     }
 }

@@ -1,5 +1,5 @@
-import kaptionit.tasks.GenerateBundledNativeDistributionPathTask
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import transbee.tasks.GenerateBundledNativeDistributionPathTask
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -40,6 +40,17 @@ private fun findCmakeExecutable(): File {
     )
 }
 
+private fun runExternalCommand(vararg command: String) {
+    val exit = ProcessBuilder(*command)
+        .redirectErrorStream(true)
+        .inheritIO()
+        .start()
+        .waitFor()
+    if (exit != 0) {
+        throw GradleException("命令失败 (exit=$exit): ${command.joinToString(" ")}")
+    }
+}
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.composeMultiplatform)
@@ -67,7 +78,7 @@ kotlin {
             implementation(libs.kotlin.test)
         }
         jvmMain {
-            kotlin.srcDir(layout.buildDirectory.dir("generated/kaptionit/kotlin"))
+            kotlin.srcDir(layout.buildDirectory.dir("generated/transbee/kotlin"))
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutinesSwing)
@@ -92,21 +103,21 @@ val generateBundledNativeDistributionPath =
         )
         outputFile.set(
             layout.buildDirectory.file(
-                "generated/kaptionit/kotlin/com/danteandroid/kaptionit/bundled/BundledNativeDistributionPath.kt",
+                "generated/transbee/kotlin/com/danteandroid/transbee/bundled/BundledNativeDistributionPath.kt",
             ),
         )
     }
 
 val generateBuildConfig = tasks.register("generateBuildConfig") {
     val outDir =
-        layout.buildDirectory.dir("generated/kaptionit/kotlin/com/danteandroid/kaptionit/bundled")
+        layout.buildDirectory.dir("generated/transbee/kotlin/com/danteandroid/transbee/bundled")
     outputs.dir(outDir)
     val versionText = computedPackageVersion
     doLast {
         val f = outDir.get().file("BuildConfig.kt").asFile
         f.parentFile.mkdirs()
         f.writeText("""
-            package com.danteandroid.kaptionit.bundled
+            package com.danteandroid.transbee.bundled
             
             object BuildConfig {
                 const val APP_VERSION = "$versionText"
@@ -284,42 +295,36 @@ val buildBundledWhisperCliUnix = tasks.register("buildBundledWhisperCliUnix") {
         val buildDir = File(repoRootPath, "native/bundled/.whisper-build")
         val destBin = File(repoRootPath, "native/bundled/whisper-cli")
         if (!srcDir.isDirectory) {
-            project.exec {
-                commandLine(
-                    "git",
-                    "clone",
-                    "--depth",
-                    "1",
-                    "--branch",
-                    whisperCppTag,
-                    "https://github.com/ggml-org/whisper.cpp.git",
-                    srcDir.absolutePath,
-                )
-            }
+            runExternalCommand(
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                "--branch",
+                whisperCppTag,
+                "https://github.com/ggml-org/whisper.cpp.git",
+                srcDir.absolutePath,
+            )
         }
         buildDir.mkdirs()
-        project.exec {
-            commandLine(
-                cmake,
-                "-S",
-                srcDir.absolutePath,
-                "-B",
-                buildDir.absolutePath,
-                "-DCMAKE_BUILD_TYPE=Release",
-            )
-        }
+        runExternalCommand(
+            cmake,
+            "-S",
+            srcDir.absolutePath,
+            "-B",
+            buildDir.absolutePath,
+            "-DCMAKE_BUILD_TYPE=Release",
+        )
         val cores = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
-        project.exec {
-            commandLine(
-                cmake,
-                "--build",
-                buildDir.absolutePath,
-                "--target",
-                "whisper-cli",
-                "--parallel",
-                cores.toString(),
-            )
-        }
+        runExternalCommand(
+            cmake,
+            "--build",
+            buildDir.absolutePath,
+            "--target",
+            "whisper-cli",
+            "--parallel",
+            cores.toString(),
+        )
         val built = File(buildDir, "bin/whisper-cli")
         if (!built.isFile) {
             throw GradleException("CMake 未生成 bin/whisper-cli，请确认已安装 Xcode 命令行工具（macOS）或 CMake 与 gcc（Linux）。")
@@ -360,19 +365,19 @@ val syncBundledWhisperCli = tasks.register("syncBundledWhisperCli") {
 
 compose.desktop {
     application {
-        mainClass = "com.danteandroid.kaptionit.MainKt"
+        mainClass = "com.danteandroid.transbee.MainKt"
         jvmArgs("-Djava.net.useSystemProxies=true")
 
         nativeDistributions {
             modules("java.net.http")
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "KaptionIt"
+            packageName = "Transbee"
             packageVersion = computedPackageVersion
             appResourcesRootDir.set(project.layout.projectDirectory.dir("native-distribution"))
             macOS {
-                bundleID = "com.danteandroid.kaptionit"
-                dockName = "KaptionIt" // 专门用于 Dock 栏显示的名字
-                iconFile.set(project.file("icons/kaptionit.icns"))
+                bundleID = "com.danteandroid.transbee"
+                dockName = "Transbee" // 专门用于 Dock 栏显示的名字
+                iconFile.set(project.file("icons/app_icon.icns"))
                 entitlementsFile.set(project.file("entitlements.plist"))
                 infoPlist {
                     extraKeysRawXml = """
@@ -388,12 +393,12 @@ compose.desktop {
                 }
             }
             windows {
-                iconFile.set(project.file("icons/kaptionit.ico"))
+                iconFile.set(project.file("icons/app_icon.ico"))
                 shortcut = true
                 menu = true
             }
             linux {
-                iconFile.set(project.file("icons/kaptionit_linux.png"))
+                iconFile.set(project.file("icons/app_icon_linux.png"))
             }
         }
     }
@@ -409,12 +414,12 @@ afterEvaluate {
     }
     val nativeDistPath = layout.projectDirectory.dir("native-distribution/common").asFile.absolutePath
     val dockIconPath =
-        layout.projectDirectory.file("src/jvmMain/composeResources/drawable/kaptionit_app_icon.png").asFile.absolutePath
+        layout.projectDirectory.file("src/jvmMain/composeResources/drawable/app_icon.png").asFile.absolutePath
     fun JavaExec.configureComposeRunResources() {
         systemProperty("compose.application.resources.dir", nativeDistPath)
         if (isMacOs()) {
-            jvmArgs("-Xdock:icon=$dockIconPath", "-Xdock:name=KaptionIt")
-            systemProperty("apple.awt.application.name", "KaptionIt")
+            jvmArgs("-Xdock:icon=$dockIconPath", "-Xdock:name=Transbee")
+            systemProperty("apple.awt.application.name", "Transbee")
         }
     }
     tasks.named<JavaExec>("run") {

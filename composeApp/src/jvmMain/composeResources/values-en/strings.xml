@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_title">KaptionIt</string>
+    <string name="app_title">Transbee</string>
     <string name="action_test">Test</string>
     <string name="action_settings">Settings</string>
     <string name="locale_switch_to_en">English</string>
@@ -38,6 +38,7 @@
     <string name="dialog_translation_test_title">Translation Service Test</string>
     <string name="dialog_translation_test_current_engine">Current engine: %1$s</string>
     <string name="dialog_translation_test_elapsed_ms">Elapsed %1$d ms</string>
+    <string name="dialog_translation_test_running">Requesting translation…</string>
     <string name="dialog_translation_test_hint_tap_run">Tap Run Test to start</string>
     <string name="action_run_test">Run Test</string>
     <string name="action_close">Close</string>
@@ -49,7 +50,7 @@
     <string name="action_delete_all">Delete All</string>
     <string name="confirm_delete_all">Delete all tasks?</string>
     <string name="action_open_folder">📂 Folder</string>
-    <string name="action_open_video">🎬 Play</string>
+    <string name="action_open_video">📄 Open</string>
     <string name="action_retry_recognize">Re-transcribe</string>
     <string name="phase_queued">Queued</string>
     <string name="phase_extracting">Extracting</string>
@@ -94,15 +95,15 @@
     <string name="dialog_custom_llm_help_title">Custom LLM</string>
     <string name="dialog_custom_llm_help_body">Supports OpenAI-compatible APIs and many domestic LLMs:\n\nDeepSeek:\nAPI base URL: https://api.deepseek.com/v1\nModel: deepseek-chat or deepseek-reasoner\n\nZhipu AI (ChatGLM):\nAPI base URL: https://open.bigmodel.cn/api/paas/v4/\nModel: glm-4\n\nTongyi Qwen (Aliyun):\nAPI base URL: https://dashscope.aliyuncs.com/compatible-mode/v1\nModel: qwen-plus or qwen-max</string>
     <string name="msg_mineru_uploading">Uploading file to MinerU…… %1$s / %2$s</string>
-    <string name="msg_mineru_processing">MinerU processing (status: %1$s)…</string>
+    <string name="msg_mineru_status_waiting">Waiting</string>
+    <string name="msg_mineru_processing">MinerU parsing · %1$s…</string>
     <string name="msg_mineru_downloading">Downloading recognition results…… %1$s / %2$s</string>
     <string name="msg_mineru_extracting">Extracting Markdown…</string>
     <string name="tasks_processing">Processing</string>
     <string name="tasks_completed">Completed</string>
     <string name="msg_total_duration">Total duration: %1$s</string>
     <string name="err_mineru_token_missing">Please enter MinerU Token in settings first.</string>
-    <string name="msg_pdf_translating">Translating PDF content…</string>
-    <string name="msg_pdf_translate_progress">Translating %1$d/%2$d paragraphs…</string>
+    <string name="msg_pdf_translating">Translating document…… %1$d / %2$d paragraphs…</string>
     <string name="label_markdown_format">Markdown format</string>
     <string name="pdf_format_bilingual">Bilingual (interleaved)</string>
     <string name="pdf_format_original_first">Original first, then translation</string>
@@ -113,10 +114,12 @@
     <string name="msg_download_complete">Download finished; path filled in</string>
     <string name="err_queue_while_downloading">Model is downloading. Please add tasks later.</string>
     <string name="err_file_read">Cannot read file: %1$s</string>
-    <string name="err_whisper_model_missing">Please download or set a Whisper model.</string>
+    <string name="err_whisper_model_missing">Please download and select a recognition model first.</string>
     <string name="err_apple_translate_missing">On-device translation component not found.</string>
     <string name="err_apple_translate_macos_only">Apple Translate is only available on macOS.</string>
     <string name="err_google_key">Please enter your Google Translate API key.</string>
+    <string name="err_translation_no_response">Translation API did not respond in time. Check your network or the translation service.</string>
+    <string name="err_translation_rate_limited">Translation requests are too frequent. Check your translation API or try again later.</string>
     <string name="err_deepl_key">Please enter your DeepL API key.</string>
     <string name="err_openai_key">Please enter your provider API key.</string>
     <string name="err_retry_failed">Retry failed: %1$s</string>

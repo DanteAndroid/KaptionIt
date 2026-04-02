@@ -1,31 +1,30 @@
-package com.danteandroid.kaptionit.translate
+package com.danteandroid.transbee.translate
 
-import com.danteandroid.kaptionit.settings.ToolingSettings
-import com.danteandroid.kaptionit.utils.JvmResourceStrings
-import com.danteandroid.kaptionit.utils.OsUtils
-import com.danteandroid.kaptionit.whisper.TranscriptSegment
-import com.danteandroid.kaptionit.whisper.WhisperParseResult
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.err_apple_binary
-import kaptionit.composeapp.generated.resources.err_apple_translate_macos_only
-import kaptionit.composeapp.generated.resources.hint_apple_translate_pair
-import kaptionit.composeapp.generated.resources.msg_translate_apple_progress
-import kaptionit.composeapp.generated.resources.msg_translate_apple_running
-import kaptionit.composeapp.generated.resources.msg_translate_deepl_progress
-import kaptionit.composeapp.generated.resources.msg_translate_deepl_running
-import kaptionit.composeapp.generated.resources.msg_translate_google_progress
-import kaptionit.composeapp.generated.resources.msg_translate_google_running
-import kaptionit.composeapp.generated.resources.msg_translate_openai_progress
-import kaptionit.composeapp.generated.resources.msg_translate_openai_running
+import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.utils.JvmResourceStrings
+import com.danteandroid.transbee.utils.OsUtils
+import com.danteandroid.transbee.whisper.TranscriptSegment
+import com.danteandroid.transbee.whisper.WhisperParseResult
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.withTimeout
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_apple_binary
+import transbee.composeapp.generated.resources.err_apple_translate_macos_only
+import transbee.composeapp.generated.resources.err_translation_no_response
+import transbee.composeapp.generated.resources.hint_apple_translate_pair
+import transbee.composeapp.generated.resources.msg_translate_apple_progress
+import transbee.composeapp.generated.resources.msg_translate_apple_running
+import transbee.composeapp.generated.resources.msg_translate_deepl_progress
+import transbee.composeapp.generated.resources.msg_translate_deepl_running
+import transbee.composeapp.generated.resources.msg_translate_google_progress
+import transbee.composeapp.generated.resources.msg_translate_google_running
+import transbee.composeapp.generated.resources.msg_translate_openai_progress
+import transbee.composeapp.generated.resources.msg_translate_openai_running
 import java.util.concurrent.atomic.AtomicInteger
 
 /** OpenAI / DeepL 等按批翻译时的每批条数（降低单次请求上下文压力） */
@@ -272,10 +271,7 @@ object TranslationService {
                 }
                 metrics.requestCount.incrementAndGet()
 
-                val timeoutMs = if (uniqueKeys.size > 8) 35_000L else 20_000L
-                val uniqueTranslated = withTimeout(timeoutMs) {
-                    translateChunk(uniqueKeys)
-                }
+                val uniqueTranslated = translateChunk(uniqueKeys)
 
                 if (uniqueTranslated.size != uniqueKeys.size) {
                     throw IllegalStateException("模型返回条数不一致 (请求 ${uniqueKeys.size} 条，返回 ${uniqueTranslated.size} 条)")
@@ -287,8 +283,6 @@ object TranslationService {
                     indexes.forEach { srcIdx -> part[srcIdx] = translatedText }
                 }
                 return part
-            } catch (e: TimeoutCancellationException) {
-                lastError = e
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -307,9 +301,7 @@ object TranslationService {
             return left + right
         }
 
-        System.err.println(
-            "[kaptionit] 翻译直接放弃降级为原文（深度 ${splitDepth}）：${lastError?.message ?: "unknown"}",
-        )
-        return sourceTexts
+        if (lastError != null) throw lastError
+        error(JvmResourceStrings.text(Res.string.err_translation_no_response))
     }
 }

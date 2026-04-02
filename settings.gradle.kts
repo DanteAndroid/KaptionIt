@@ -1,4 +1,4 @@
-rootProject.name = "KaptionIt"
+rootProject.name = "Transbee"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

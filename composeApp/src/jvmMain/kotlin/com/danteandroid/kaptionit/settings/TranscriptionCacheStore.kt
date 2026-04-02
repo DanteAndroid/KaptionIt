@@ -1,7 +1,7 @@
-package com.danteandroid.kaptionit.settings
+package com.danteandroid.transbee.settings
 
-import com.danteandroid.kaptionit.settings.TranscriptionCacheStore.MAX_CACHE_ENTRIES
-import com.danteandroid.kaptionit.whisper.WhisperParseResult
+import com.danteandroid.transbee.settings.TranscriptionCacheStore.MAX_CACHE_ENTRIES
+import com.danteandroid.transbee.whisper.WhisperParseResult
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File

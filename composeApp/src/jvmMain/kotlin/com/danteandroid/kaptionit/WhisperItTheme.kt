@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit
+package com.danteandroid.transbee
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -172,7 +172,7 @@ object AppTheme {
 }
 
 @Composable
-fun KaptionItTheme(
+fun TransbeeTheme(
     darkTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {

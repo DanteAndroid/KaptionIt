@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.translate
+package com.danteandroid.transbee.translate
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,13 +14,13 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 
 class OpenAiTranslator(
     private val apiKey: String,
     private val model: String = "gpt-5-mini",
     private val baseUrl: String = "https://api.openai.com/v1",
+    private val enforceSubtitleBatchRules: Boolean = true,
 ) {
     companion object {
         fun chatCompletionsEndpoint(baseUrl: String): String {
@@ -108,13 +108,14 @@ class OpenAiTranslator(
             .uri(endpointUri)
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer $apiKey")
-            .timeout(Duration.ofSeconds(120))
+            .timeout(TranslationHttp.requestTimeoutLlm)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build()
-        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+        val response = TranslationHttp.sendString(http, request)
 
         if (response.statusCode() !in 200..299) {
             val code = response.statusCode()
+            TranslationHttp.ensureNotRateLimited(code)
             val snippet = response.body().trim().take(500)
             val hint = if (code == 404) {
                 "（404：地址请填到 …/v1 这类前缀，或填完整 …/chat/completions。）"
@@ -126,10 +127,15 @@ class OpenAiTranslator(
         val content = parsed.choices.firstOrNull()?.message?.content
             ?: error("翻译没有返回内容，请重试。")
 
-        return parseResponse(content, texts, targetLanguage)
+        return parseResponse(content, texts, targetLanguage, enforceSubtitleBatchRules)
     }
 
-    private fun parseResponse(content: String, sources: List<String>, targetLanguage: String): List<String> {
+    private fun parseResponse(
+        content: String,
+        sources: List<String>,
+        targetLanguage: String,
+        strictSubtitle: Boolean,
+    ): List<String> {
         val expectedSize = sources.size
         val trimmed = content.trim()
 
@@ -176,15 +182,16 @@ class OpenAiTranslator(
             )
         }
 
-        if (filledIds.size < expectedSize) {
+        if (strictSubtitle && filledIds.size < expectedSize) {
             error("翻译返回条数不足（期望 $expectedSize，实际 ${filledIds.size}），已拒绝结果以触发重试。")
         }
 
-        validateQualityOrThrow(sources, result, targetLanguage)
+        if (strictSubtitle) {
+            validateQualityOrThrow(sources, result, targetLanguage)
+        }
         return result
     }
 
-    /** 结构合法仍可能「未翻译」或合并行，此处触发重试/拆批，避免污染字幕文件 */
     private fun validateQualityOrThrow(
         sources: List<String>,
         translations: List<String>,

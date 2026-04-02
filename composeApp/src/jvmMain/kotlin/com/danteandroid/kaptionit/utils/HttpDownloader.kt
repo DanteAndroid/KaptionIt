@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.utils
+package com.danteandroid.transbee.utils
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

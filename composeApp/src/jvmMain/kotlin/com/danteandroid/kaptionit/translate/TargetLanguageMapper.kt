@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.translate
+package com.danteandroid.transbee.translate
 
 object TargetLanguageMapper {
 

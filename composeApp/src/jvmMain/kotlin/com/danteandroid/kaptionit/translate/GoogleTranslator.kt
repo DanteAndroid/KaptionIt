@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.translate
+package com.danteandroid.transbee.translate
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,7 +9,6 @@ import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Duration
 
@@ -44,13 +43,14 @@ class GoogleTranslator(
                 )
                 val request = HttpRequest.newBuilder()
                     .uri(uri)
-                    .timeout(Duration.ofMinutes(5))
+                    .timeout(TranslationHttp.requestTimeout)
                     .header("Content-Type", "application/json; charset=utf-8")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build()
-                val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+                val response = TranslationHttp.sendString(http, request)
                 if (response.statusCode() !in 200..299) {
                     val code = response.statusCode()
+                    TranslationHttp.ensureNotRateLimited(code)
                     error("Google 翻译服务返回错误（错误码 $code），请检查密钥或网络。")
                 }
                 val parsed = json.decodeFromString(TranslateV2Response.serializer(), response.body())

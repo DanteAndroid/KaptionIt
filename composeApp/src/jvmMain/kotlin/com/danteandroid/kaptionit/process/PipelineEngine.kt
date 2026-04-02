@@ -1,43 +1,44 @@
-package com.danteandroid.kaptionit.process
+package com.danteandroid.transbee.process
 
-import com.danteandroid.kaptionit.native.BundledNativeTools
-import com.danteandroid.kaptionit.settings.ToolingSettings
-import com.danteandroid.kaptionit.settings.TranscriptionCacheKeyDto
-import com.danteandroid.kaptionit.settings.TranscriptionCacheStore
-import com.danteandroid.kaptionit.srt.SubtitleBuilder
-import com.danteandroid.kaptionit.ui.TranslationTaskStats
-import com.danteandroid.kaptionit.utils.HttpDownloader
-import com.danteandroid.kaptionit.utils.JvmResourceStrings
-import com.danteandroid.kaptionit.utils.extractMdFromZip
-import com.danteandroid.kaptionit.utils.subtitleOutputFile
-import com.danteandroid.kaptionit.utils.toReadableByteSize
-import com.danteandroid.kaptionit.whisper.WhisperCliArgs
-import com.danteandroid.kaptionit.whisper.WhisperJsonParser
-import com.danteandroid.kaptionit.whisper.WhisperVadModel
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.dialog_mineru_help_url
-import kaptionit.composeapp.generated.resources.err_audio_extract
-import kaptionit.composeapp.generated.resources.err_mineru_api
-import kaptionit.composeapp.generated.resources.err_mineru_token_expired
-import kaptionit.composeapp.generated.resources.err_mineru_token_invalid
-import kaptionit.composeapp.generated.resources.err_mineru_token_missing
-import kaptionit.composeapp.generated.resources.err_mineru_zip
-import kaptionit.composeapp.generated.resources.err_whisper
-import kaptionit.composeapp.generated.resources.msg_extract_audio
-import kaptionit.composeapp.generated.resources.msg_mineru_downloading
-import kaptionit.composeapp.generated.resources.msg_mineru_extracting
-import kaptionit.composeapp.generated.resources.msg_mineru_processing
-import kaptionit.composeapp.generated.resources.msg_mineru_uploading
-import kaptionit.composeapp.generated.resources.msg_pdf_translate_progress
-import kaptionit.composeapp.generated.resources.msg_pdf_translating
-import kaptionit.composeapp.generated.resources.msg_text_translate_progress
-import kaptionit.composeapp.generated.resources.msg_text_translating
-import kaptionit.composeapp.generated.resources.msg_transcribing
-import kaptionit.composeapp.generated.resources.msg_transcription_cache_hit
-import kaptionit.composeapp.generated.resources.msg_whisper_line
+import com.danteandroid.transbee.native.BundledNativeTools
+import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.settings.TranscriptionCacheKeyDto
+import com.danteandroid.transbee.settings.TranscriptionCacheStore
+import com.danteandroid.transbee.srt.SubtitleBuilder
+import com.danteandroid.transbee.ui.TranslationTaskStats
+import com.danteandroid.transbee.utils.HttpDownloader
+import com.danteandroid.transbee.utils.JvmResourceStrings
+import com.danteandroid.transbee.utils.extractMdFromZip
+import com.danteandroid.transbee.utils.subtitleOutputFile
+import com.danteandroid.transbee.utils.toReadableByteSize
+import com.danteandroid.transbee.whisper.WhisperCliArgs
+import com.danteandroid.transbee.whisper.WhisperJsonParser
+import com.danteandroid.transbee.whisper.WhisperVadModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.dialog_mineru_help_url
+import transbee.composeapp.generated.resources.err_audio_extract
+import transbee.composeapp.generated.resources.err_mineru_api
+import transbee.composeapp.generated.resources.err_mineru_token_expired
+import transbee.composeapp.generated.resources.err_mineru_token_invalid
+import transbee.composeapp.generated.resources.err_mineru_token_missing
+import transbee.composeapp.generated.resources.err_mineru_zip
+import transbee.composeapp.generated.resources.err_whisper
+import transbee.composeapp.generated.resources.msg_extract_audio
+import transbee.composeapp.generated.resources.msg_mineru_downloading
+import transbee.composeapp.generated.resources.msg_mineru_extracting
+import transbee.composeapp.generated.resources.msg_mineru_processing
+import transbee.composeapp.generated.resources.msg_mineru_status_waiting
+import transbee.composeapp.generated.resources.msg_mineru_uploading
+import transbee.composeapp.generated.resources.msg_pdf_translating
+import transbee.composeapp.generated.resources.msg_text_translate_progress
+import transbee.composeapp.generated.resources.msg_text_translating
+import transbee.composeapp.generated.resources.msg_transcribing
+import transbee.composeapp.generated.resources.msg_transcription_cache_hit
+import transbee.composeapp.generated.resources.msg_whisper_line
+import transbee.composeapp.generated.resources.tasks_processing
 import java.io.File
 import java.net.URI
 import java.nio.file.Files
@@ -65,6 +66,24 @@ object PipelineEngine {
         "jpg", "jpeg", "png", "gif", "bmp", "tiff", "webp",
     )
     private val textExtensions = setOf("txt", "md")
+
+    /** MinerU 文档或 txt/md 直译，非音视频字幕管道 */
+    fun isDocumentSourceFile(file: File): Boolean {
+        val ext = file.extension.lowercase()
+        return ext in mineruDocExtensions || ext in textExtensions
+    }
+
+    /** MinerU 轮询可能传入空串或 API 英文状态，统一为可读短文案，避免「（…）…」叠字 */
+    private fun mineruProcessingStatusLabel(state: String): String {
+        val t = state.trim()
+        if (t.isEmpty() || t == "…") {
+            return JvmResourceStrings.text(Res.string.tasks_processing)
+        }
+        if (t == "waiting") {
+            return JvmResourceStrings.text(Res.string.msg_mineru_status_waiting)
+        }
+        return t
+    }
 
     suspend fun execute(id: String, file: File, cfg: ToolingSettings, listener: PipelineListener) {
         val ext = file.extension.lowercase()
@@ -206,12 +225,18 @@ object PipelineEngine {
         } ?: return
         val zipUrl = step(
             0f,
-            JvmResourceStrings.text(Res.string.msg_mineru_processing, "…"),
+            JvmResourceStrings.text(
+                Res.string.msg_mineru_processing,
+                mineruProcessingStatusLabel("")
+            ),
             true,
         ) {
             client.poll(taskId) { state ->
                 listener.onProgress(
-                    JvmResourceStrings.text(Res.string.msg_mineru_processing, state),
+                    JvmResourceStrings.text(
+                        Res.string.msg_mineru_processing,
+                        mineruProcessingStatusLabel(state)
+                    ),
                     null,
                     true,
                 )
@@ -219,7 +244,7 @@ object PipelineEngine {
         } ?: return
 
         val tmpDir =
-            withContext(Dispatchers.IO) { Files.createTempDirectory("kaptionit_pdf_") }.also {
+            withContext(Dispatchers.IO) { Files.createTempDirectory("transbee_pdf_") }.also {
                 workDir = it
             }
         val zipFile = tmpDir.resolve("result.zip").toFile()
@@ -276,25 +301,32 @@ object PipelineEngine {
             return
         }
 
-        listener.onStateChange(
-            PipelinePhase.Translating,
-            JvmResourceStrings.text(Res.string.msg_pdf_translating),
-            0f,
-            false
-        )
-        val mdContent = extractedMd.readText()
-        val paragraphs = MdTranslator.splitParagraphs(mdContent)
-        val translated = MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
-            val t = total.coerceAtLeast(1)
-            listener.onProgress(
-                JvmResourceStrings.text(Res.string.msg_pdf_translate_progress, done, total),
-                done.toFloat() / t,
-                false,
+        try {
+            val mdContent = extractedMd.readText()
+            val paragraphs = MdTranslator.splitParagraphs(mdContent)
+            val translatableTotal = MdTranslator.countTranslatableParagraphs(paragraphs)
+            listener.onStateChange(
+                PipelinePhase.Translating,
+                JvmResourceStrings.text(Res.string.msg_pdf_translating, 0, translatableTotal),
+                if (translatableTotal == 0) 1f else 0f,
+                false
             )
+            val translated = MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
+                val t = total.coerceAtLeast(1)
+                listener.onProgress(
+                    JvmResourceStrings.text(Res.string.msg_pdf_translating, done, total),
+                    done.toFloat() / t,
+                    false,
+                )
+            }
+            val assembled = MdTranslator.assemble(paragraphs, translated, cfg.pdfTranslateFormat)
+            destMdFile.writeText(assembled)
+            listener.onCompleted(destMdFile.absolutePath, null)
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            workDir?.toFile()?.deleteRecursively()
+            listener.onError(e.message ?: e.toString())
         }
-        val assembled = MdTranslator.assemble(paragraphs, translated, cfg.pdfTranslateFormat)
-        destMdFile.writeText(assembled)
-        listener.onCompleted(destMdFile.absolutePath, null)
     }
 
     /** txt/md 直接读取内容并翻译，不经 MinerU */
@@ -355,8 +387,8 @@ object PipelineEngine {
         cfg: ToolingSettings,
         listener: PipelineListener,
         onWorkDir: (java.nio.file.Path) -> Unit
-    ): com.danteandroid.kaptionit.whisper.WhisperParseResult {
-        val tmpDir = Files.createTempDirectory("kaptionit_").also(onWorkDir)
+    ): com.danteandroid.transbee.whisper.WhisperParseResult {
+        val tmpDir = Files.createTempDirectory("transbee_").also(onWorkDir)
         val wavPath = tmpDir.resolve("audio.wav").toString()
 
         ProcessRunner.run(

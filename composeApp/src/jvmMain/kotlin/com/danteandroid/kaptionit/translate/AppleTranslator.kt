@@ -1,6 +1,6 @@
-package com.danteandroid.kaptionit.translate
+package com.danteandroid.transbee.translate
 
-import com.danteandroid.kaptionit.native.BundledNativeTools
+import com.danteandroid.transbee.native.BundledNativeTools
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -36,8 +36,8 @@ class AppleTranslator(
         if (!bin.isFile) {
             error("找不到本机翻译组件。")
         }
-        val inFile = Files.createTempFile("kaptionit_apple_in_", ".json")
-        val outFile = Files.createTempFile("kaptionit_apple_out_", ".json")
+        val inFile = Files.createTempFile("transbee_apple_in_", ".json")
+        val outFile = Files.createTempFile("transbee_apple_out_", ".json")
         try {
             val payload = json.encodeToString(
                 AppleTranslateInput.serializer(),
@@ -155,7 +155,7 @@ class AppleTranslator(
                 exitHolder[0] = process.waitFor()
             } catch (_: InterruptedException) {
             }
-        }, "kaptionit-apple-wait")
+        }, "transbee-apple-wait")
         waiter.isDaemon = true
         waiter.start()
         waiter.join(timeoutMs)
@@ -190,8 +190,8 @@ object AppleTranslateBinary {
     fun defaultSearchPaths(): List<File> {
         val home = System.getProperty("user.home") ?: return emptyList()
         return listOf(
-            File(home, ".kaptionit/bin/AppleTranslate"),
-            File(home, "Library/Application Support/kaptionit/bin/AppleTranslate"),
+            File(home, ".transbee/bin/AppleTranslate"),
+            File(home, "Library/Application Support/transbee/bin/AppleTranslate"),
         )
     }
 

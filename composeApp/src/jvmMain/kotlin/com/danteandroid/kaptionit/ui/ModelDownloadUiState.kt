@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.ui
+package com.danteandroid.transbee.ui
 
 data class ModelDownloadUiState(
     val active: Boolean = false,

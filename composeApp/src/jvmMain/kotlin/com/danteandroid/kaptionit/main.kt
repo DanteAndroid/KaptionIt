@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit
+package com.danteandroid.transbee
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
@@ -8,13 +8,13 @@ import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import com.danteandroid.kaptionit.native.BundledNativeTools
-import com.danteandroid.kaptionit.screen.App
-import com.danteandroid.kaptionit.utils.JvmResourceStrings
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.app_title
-import kaptionit.composeapp.generated.resources.kaptionit_app_icon
+import com.danteandroid.transbee.native.BundledNativeTools
+import com.danteandroid.transbee.screen.App
+import com.danteandroid.transbee.utils.JvmResourceStrings
 import org.jetbrains.compose.resources.painterResource
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.app_icon
+import transbee.composeapp.generated.resources.app_title
 import java.awt.GraphicsEnvironment
 import java.awt.Taskbar
 import java.util.Locale
@@ -22,7 +22,7 @@ import java.util.prefs.Preferences
 import javax.imageio.ImageIO
 
 private const val WhisperitIconClasspathResource =
-    "composeResources/kaptionit.composeapp.generated.resources/drawable/kaptionit_app_icon.png"
+    "composeResources/transbee.composeapp.generated.resources/drawable/app_icon.png"
 
 private fun applyNativeAppIconFromClasspath() {
     if (GraphicsEnvironment.isHeadless()) return
@@ -50,7 +50,7 @@ fun main() {
     BundledNativeTools.ensureComposeResourcesDirFromDiscovery()
     applyNativeAppIconFromClasspath()
     application {
-        val prefs = Preferences.userRoot().node("com.danteandroid.kaptionit/window")
+        val prefs = Preferences.userRoot().node("com.danteandroid.transbee/window")
         val savedWidth = prefs.getDouble("widthDp", 1024.0).dp
         val savedHeight = prefs.getDouble("heightDp", 940.0).dp
         val hasSavedPosition = prefs.getBoolean("hasPosition", false)
@@ -94,7 +94,7 @@ fun main() {
             onCloseRequest = ::exitApplication,
             title = JvmResourceStrings.text(Res.string.app_title),
             state = windowState,
-            icon = painterResource(Res.drawable.kaptionit_app_icon),
+            icon = painterResource(Res.drawable.app_icon),
         ) {
             App()
         }

@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-package com.danteandroid.kaptionit.screen
+package com.danteandroid.transbee.screen
 
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.Arrangement
@@ -12,19 +12,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
@@ -41,29 +45,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.danteandroid.kaptionit.AppLanguage
-import com.danteandroid.kaptionit.AppLocale
-import com.danteandroid.kaptionit.AppTheme
-import com.danteandroid.kaptionit.KaptionItTheme
-import com.danteandroid.kaptionit.ui.PipelineViewModel
-import com.danteandroid.kaptionit.ui.labelRes
-import com.danteandroid.kaptionit.utils.SmokeTestResult
-import com.danteandroid.kaptionit.utils.runServiceSmokeTest
-import com.danteandroid.kaptionit.utils.smokeTestSourceText
-import com.danteandroid.kaptionit.whisper.WhisperModelCatalog
-import com.danteandroid.kaptionit.whisper.isDownloaded
-import com.danteandroid.kaptionit.whisper.modelFile
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.action_close
-import kaptionit.composeapp.generated.resources.action_run_test
-import kaptionit.composeapp.generated.resources.dialog_translation_test_current_engine
-import kaptionit.composeapp.generated.resources.dialog_translation_test_elapsed_ms
-import kaptionit.composeapp.generated.resources.dialog_translation_test_hint_tap_run
-import kaptionit.composeapp.generated.resources.dialog_translation_test_title
-import kaptionit.composeapp.generated.resources.subtitle_output_source
-import kaptionit.composeapp.generated.resources.subtitle_output_target
+import com.danteandroid.transbee.AppLanguage
+import com.danteandroid.transbee.AppLocale
+import com.danteandroid.transbee.AppTheme
+import com.danteandroid.transbee.TransbeeTheme
+import com.danteandroid.transbee.ui.PipelineViewModel
+import com.danteandroid.transbee.ui.labelRes
+import com.danteandroid.transbee.utils.SmokeTestResult
+import com.danteandroid.transbee.utils.runServiceSmokeTest
+import com.danteandroid.transbee.utils.smokeTestSourceText
+import com.danteandroid.transbee.whisper.WhisperModelCatalog
+import com.danteandroid.transbee.whisper.isDownloaded
+import com.danteandroid.transbee.whisper.modelFile
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.action_close
+import transbee.composeapp.generated.resources.action_run_test
+import transbee.composeapp.generated.resources.dialog_translation_test_current_engine
+import transbee.composeapp.generated.resources.dialog_translation_test_elapsed_ms
+import transbee.composeapp.generated.resources.dialog_translation_test_hint_tap_run
+import transbee.composeapp.generated.resources.dialog_translation_test_running
+import transbee.composeapp.generated.resources.dialog_translation_test_title
+import transbee.composeapp.generated.resources.subtitle_output_source
+import transbee.composeapp.generated.resources.subtitle_output_target
 
 @Composable
 fun App() {
@@ -109,13 +114,12 @@ fun App() {
         }
     }
 
-    KaptionItTheme {
+    TransbeeTheme {
         val spacing = AppTheme.spacing
         // 语言切换后强制重组，使界面字符串立即随 AppLocale 更新
         key(appLanguage) {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
-                snackbarHost = { SnackbarHost(snackbarHostState) },
             ) { padding ->
                 Column(Modifier.padding(padding)) {
                     Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -125,27 +129,62 @@ fun App() {
                             tooling = tooling,
                             viewModel = viewModel,
                             onSelectPreset = { selectedPreset = it },
+                            onTranslationEngineKeyHint = { msg ->
+                                if (msg != null) scope.launch { snackbarHostState.showSnackbar(msg) }
+                            },
                             modifier = Modifier.weight(0.34f).fillMaxHeight(),
                         )
                         VerticalDivider(Modifier.width(1.dp).fillMaxHeight())
-                        AppTaskScreen(
-                            tasks = tasks,
-                            onFilesSelected = { files ->
-                                viewModel.onFilesSelected(files)
-                            },
-                            onDeleteTask = viewModel::deleteTask,
-                            onRetryTask = { id ->
-                                val err = viewModel.retryTask(id)
-                                if (err != null) scope.launch { snackbarHostState.showSnackbar(err) }
-                            },
-                            onStartAll = {
-                                val err = viewModel.startAllTasks()
-                                if (err != null) scope.launch { snackbarHostState.showSnackbar(err) }
-                            },
-                            onPauseAll = viewModel::pauseAllTasks,
-                            onDeleteAll = viewModel::deleteAllTasks,
-                            modifier = Modifier.weight(0.66f).fillMaxHeight().padding(spacing.large),
-                        )
+                        Box(
+                            Modifier
+                                .weight(0.66f)
+                                .fillMaxHeight()
+                                .padding(spacing.large),
+                        ) {
+                            AppTaskScreen(
+                                tasks = tasks,
+                                onFilesSelected = { files ->
+                                    val errs =
+                                        viewModel.onFilesSelected(files).filter { it.isNotBlank() }
+                                    if (errs.isNotEmpty()) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                message = errs.joinToString("\n"),
+                                                duration = SnackbarDuration.Short,
+                                            )
+                                        }
+                                    }
+                                },
+                                onDeleteTask = viewModel::deleteTask,
+                                onRetryTask = { id ->
+                                    val err = viewModel.retryTask(id)
+                                    if (err != null) scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            err
+                                        )
+                                    }
+                                },
+                                onStartAll = {
+                                    val err = viewModel.startAllTasks()
+                                    if (err != null) scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            err
+                                        )
+                                    }
+                                },
+                                onPauseAll = viewModel::pauseAllTasks,
+                                onDeleteAll = viewModel::deleteAllTasks,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            SnackbarHost(
+                                snackbarHostState,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .padding(bottom = 16.dp),
+                            )
+                        }
                     }
                     HorizontalDivider()
                     StatusBarRow(
@@ -202,11 +241,12 @@ fun App() {
 
 @Composable
 private fun SettingsPanel(
-    selectedPreset: com.danteandroid.kaptionit.whisper.WhisperModelOption,
-    modelDl: com.danteandroid.kaptionit.ui.ModelDownloadUiState,
-    tooling: com.danteandroid.kaptionit.settings.ToolingSettings,
+    selectedPreset: com.danteandroid.transbee.whisper.WhisperModelOption,
+    modelDl: com.danteandroid.transbee.ui.ModelDownloadUiState,
+    tooling: com.danteandroid.transbee.settings.ToolingSettings,
     viewModel: PipelineViewModel,
-    onSelectPreset: (com.danteandroid.kaptionit.whisper.WhisperModelOption) -> Unit,
+    onSelectPreset: (com.danteandroid.transbee.whisper.WhisperModelOption) -> Unit,
+    onTranslationEngineKeyHint: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = AppTheme.spacing
@@ -232,7 +272,13 @@ private fun SettingsPanel(
                 onDownloadModel = { viewModel.downloadWhisperModel(it, false) },
                 onStopDownload = viewModel::cancelModelDownload,
             )
-            TranslationSettingCard(tooling = tooling, onUpdateTooling = viewModel::updateTooling)
+            TranslationSettingCard(
+                tooling = tooling,
+                onUpdateTooling = viewModel::updateTooling,
+                onTranslationEngineChanged = { eng ->
+                    onTranslationEngineKeyHint(viewModel.missingKeyMessageForEngine(eng, tooling))
+                },
+            )
             ExportSettingCard(tooling = tooling, onUpdateTooling = viewModel::updateTooling)
         }
         VerticalScrollbar(
@@ -269,7 +315,29 @@ private fun TranslationTestDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (busy) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = spacing.medium, vertical = spacing.small),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(spacing.small),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                            )
+                            Text(
+                                stringResource(Res.string.dialog_translation_test_running),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                    }
                 }
                 Text(
                     stringResource(Res.string.subtitle_output_source),

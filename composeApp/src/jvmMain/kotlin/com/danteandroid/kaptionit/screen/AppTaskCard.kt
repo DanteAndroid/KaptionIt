@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.screen
+package com.danteandroid.transbee.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,24 +35,25 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
-import com.danteandroid.kaptionit.AppTheme
-import com.danteandroid.kaptionit.process.PipelinePhase
-import com.danteandroid.kaptionit.process.isActivelyProcessing
-import com.danteandroid.kaptionit.ui.TaskRecord
-import com.danteandroid.kaptionit.ui.TranslationTaskStats
-import com.danteandroid.kaptionit.ui.label
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.action_delete
-import kaptionit.composeapp.generated.resources.action_open_folder
-import kaptionit.composeapp.generated.resources.action_open_video
-import kaptionit.composeapp.generated.resources.action_retry_recognize
-import kaptionit.composeapp.generated.resources.duration_format_min_sec
-import kaptionit.composeapp.generated.resources.duration_format_sec_only
-import kaptionit.composeapp.generated.resources.duration_zero
-import kaptionit.composeapp.generated.resources.task_done_detail_full
-import kaptionit.composeapp.generated.resources.task_done_detail_skipped
+import com.danteandroid.transbee.AppTheme
+import com.danteandroid.transbee.process.PipelineEngine
+import com.danteandroid.transbee.process.PipelinePhase
+import com.danteandroid.transbee.process.isActivelyProcessing
+import com.danteandroid.transbee.ui.TaskRecord
+import com.danteandroid.transbee.ui.TranslationTaskStats
+import com.danteandroid.transbee.ui.label
+import com.danteandroid.transbee.utils.OsUtils
 import org.jetbrains.compose.resources.stringResource
-import java.awt.Desktop
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.action_delete
+import transbee.composeapp.generated.resources.action_open_folder
+import transbee.composeapp.generated.resources.action_open_video
+import transbee.composeapp.generated.resources.action_retry_recognize
+import transbee.composeapp.generated.resources.duration_format_min_sec
+import transbee.composeapp.generated.resources.duration_format_sec_only
+import transbee.composeapp.generated.resources.duration_zero
+import transbee.composeapp.generated.resources.task_done_detail_full
+import transbee.composeapp.generated.resources.task_done_detail_skipped
 import java.io.File
 
 @Composable
@@ -143,20 +144,20 @@ private fun ActionRow(
     ) {
         if (task.phase == PipelinePhase.Done && task.outputPath != null) {
             TextButton(onClick = {
-                com.danteandroid.kaptionit.utils.OsUtils.revealInFileBrowser(
-                    File(
-                        task.outputPath
-                    )
-                )
+                OsUtils.revealInFileBrowser(File(task.outputPath))
             }) {
                 Text(stringResource(Res.string.action_open_folder))
             }
         }
-        if (task.phase == PipelinePhase.Done && !task.sourcePath.isNullOrBlank()) {
-            TextButton(
-                onClick = { runCatching { Desktop.getDesktop().open(File(task.sourcePath)) } },
-            ) {
-                Text(stringResource(Res.string.action_open_video))
+        val srcPath = task.sourcePath
+        if (task.phase == PipelinePhase.Done && !srcPath.isNullOrBlank()) {
+            val sourceFile = File(srcPath)
+            val openPath =
+                if (PipelineEngine.isDocumentSourceFile(sourceFile)) task.outputPath else srcPath
+            if (!openPath.isNullOrBlank()) {
+                TextButton(onClick = { runCatching { OsUtils.openFile(File(openPath)) } }) {
+                    Text(stringResource(Res.string.action_open_video))
+                }
             }
         }
         Spacer(Modifier.weight(1f))

@@ -1,6 +1,6 @@
-package com.danteandroid.kaptionit.native
+package com.danteandroid.transbee.native
 
-import com.danteandroid.kaptionit.bundled.BundledNativeDistributionPath
+import com.danteandroid.transbee.bundled.BundledNativeDistributionPath
 import java.io.File
 
 object BundledNativeTools {

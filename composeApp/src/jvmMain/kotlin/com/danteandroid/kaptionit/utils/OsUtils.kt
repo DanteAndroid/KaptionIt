@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.utils
+package com.danteandroid.transbee.utils
 
 object OsUtils {
     private val osName: String = System.getProperty("os.name")?.lowercase().orEmpty()

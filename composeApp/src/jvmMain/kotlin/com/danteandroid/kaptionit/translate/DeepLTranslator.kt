@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.translate
+package com.danteandroid.transbee.translate
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -8,7 +8,6 @@ import kotlinx.serialization.json.Json
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 import kotlin.math.min
 
@@ -97,14 +96,15 @@ class DeepLTranslator(
         )
         val request = HttpRequest.newBuilder()
             .uri(URI.create(endpoint))
-            .timeout(Duration.ofMinutes(2))
+            .timeout(TranslationHttp.requestTimeout)
             .header("Authorization", "DeepL-Auth-Key $authKey")
             .header("Content-Type", "application/json; charset=utf-8")
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build()
-        val response = http.send(request, HttpResponse.BodyHandlers.ofString())
+        val response = TranslationHttp.sendString(http, request)
         if (response.statusCode() !in 200..299) {
             val code = response.statusCode()
+            TranslationHttp.ensureNotRateLimited(code)
             error("DeepL 服务返回错误（错误码 $code），请检查密钥或网络。")
         }
         val parsed = json.decodeFromString(DeepLResponse.serializer(), response.body())

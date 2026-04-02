@@ -1,19 +1,19 @@
-package com.danteandroid.kaptionit.utils
+package com.danteandroid.transbee.utils
 
-import com.danteandroid.kaptionit.settings.ToolingSettings
-import com.danteandroid.kaptionit.translate.AppleTranslateBinary
-import com.danteandroid.kaptionit.translate.AppleTranslator
-import com.danteandroid.kaptionit.translate.DeepLTranslator
-import com.danteandroid.kaptionit.translate.GoogleTranslator
-import com.danteandroid.kaptionit.translate.OpenAiTranslator
-import com.danteandroid.kaptionit.translate.TargetLanguageMapper
-import com.danteandroid.kaptionit.translate.TranslationEngine
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.err_apple_translate_macos_only
-import kaptionit.composeapp.generated.resources.test_err_apple_binary
-import kaptionit.composeapp.generated.resources.test_err_deepl_key
-import kaptionit.composeapp.generated.resources.test_err_google_key
-import kaptionit.composeapp.generated.resources.test_err_openai_key
+import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.translate.AppleTranslateBinary
+import com.danteandroid.transbee.translate.AppleTranslator
+import com.danteandroid.transbee.translate.DeepLTranslator
+import com.danteandroid.transbee.translate.GoogleTranslator
+import com.danteandroid.transbee.translate.OpenAiTranslator
+import com.danteandroid.transbee.translate.TargetLanguageMapper
+import com.danteandroid.transbee.translate.TranslationEngine
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_apple_translate_macos_only
+import transbee.composeapp.generated.resources.test_err_apple_binary
+import transbee.composeapp.generated.resources.test_err_deepl_key
+import transbee.composeapp.generated.resources.test_err_google_key
+import transbee.composeapp.generated.resources.test_err_openai_key
 
 private const val ENGLISH_SMOKE_TEXT =
     "Classical mythology and modern science intertwine to form a labyrinth of thought. " +

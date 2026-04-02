@@ -3,7 +3,7 @@
     ExperimentalComposeUiApi::class,
 )
 
-package com.danteandroid.kaptionit.screen
+package com.danteandroid.transbee.screen
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -58,36 +58,36 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.danteandroid.kaptionit.AppTheme
-import com.danteandroid.kaptionit.KaptionItTheme
-import com.danteandroid.kaptionit.process.PipelinePhase
-import com.danteandroid.kaptionit.process.isActivelyProcessing
-import com.danteandroid.kaptionit.ui.ModelDownloadUiState
-import com.danteandroid.kaptionit.ui.TaskRecord
-import com.danteandroid.kaptionit.utils.fileFromDragDropPath
-import com.danteandroid.kaptionit.utils.pickFilesWithChooser
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.action_cancel
-import kaptionit.composeapp.generated.resources.action_choose_file
-import kaptionit.composeapp.generated.resources.action_confirm
-import kaptionit.composeapp.generated.resources.action_delete_all
-import kaptionit.composeapp.generated.resources.action_pause_all
-import kaptionit.composeapp.generated.resources.action_settings
-import kaptionit.composeapp.generated.resources.action_start_all
-import kaptionit.composeapp.generated.resources.action_test
-import kaptionit.composeapp.generated.resources.app_title
-import kaptionit.composeapp.generated.resources.confirm_delete_all
-import kaptionit.composeapp.generated.resources.drag_to_start_hint
-import kaptionit.composeapp.generated.resources.drop_zone_hint
-import kaptionit.composeapp.generated.resources.state_downloading
-import kaptionit.composeapp.generated.resources.status_free_space_prefix
-import kaptionit.composeapp.generated.resources.status_model_prefix
-import kaptionit.composeapp.generated.resources.tasks_completed
-import kaptionit.composeapp.generated.resources.tasks_processing
+import com.danteandroid.transbee.AppTheme
+import com.danteandroid.transbee.TransbeeTheme
+import com.danteandroid.transbee.process.PipelinePhase
+import com.danteandroid.transbee.process.isActivelyProcessing
+import com.danteandroid.transbee.ui.ModelDownloadUiState
+import com.danteandroid.transbee.ui.TaskRecord
+import com.danteandroid.transbee.utils.fileFromDragDropPath
+import com.danteandroid.transbee.utils.pickFilesWithChooser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.action_cancel
+import transbee.composeapp.generated.resources.action_choose_file
+import transbee.composeapp.generated.resources.action_confirm
+import transbee.composeapp.generated.resources.action_delete_all
+import transbee.composeapp.generated.resources.action_pause_all
+import transbee.composeapp.generated.resources.action_settings
+import transbee.composeapp.generated.resources.action_start_all
+import transbee.composeapp.generated.resources.action_test
+import transbee.composeapp.generated.resources.app_title
+import transbee.composeapp.generated.resources.confirm_delete_all
+import transbee.composeapp.generated.resources.drag_to_start_hint
+import transbee.composeapp.generated.resources.drop_zone_hint
+import transbee.composeapp.generated.resources.state_downloading
+import transbee.composeapp.generated.resources.status_free_space_prefix
+import transbee.composeapp.generated.resources.status_model_prefix
+import transbee.composeapp.generated.resources.tasks_completed
+import transbee.composeapp.generated.resources.tasks_processing
 import java.io.File
 
 private val taskSortComparator =
@@ -516,7 +516,7 @@ fun StatusBarRow(
 @Preview
 @Composable
 private fun AppTaskScreenPreview() {
-    KaptionItTheme {
+    TransbeeTheme {
         AppTaskScreen(
             tasks = listOf(
                 TaskRecord(
@@ -554,7 +554,7 @@ private fun AppTaskScreenPreview() {
 @Preview
 @Composable
 private fun StatusBarRowPreview() {
-    KaptionItTheme {
+    TransbeeTheme {
         StatusBarRow(
             selectedPresetId = "base",
             modelDownload = ModelDownloadUiState(),

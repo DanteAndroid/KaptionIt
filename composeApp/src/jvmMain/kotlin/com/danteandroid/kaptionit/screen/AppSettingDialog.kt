@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-package com.danteandroid.kaptionit.screen
+package com.danteandroid.transbee.screen
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,50 +41,50 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
-import com.danteandroid.kaptionit.AppTheme
-import com.danteandroid.kaptionit.settings.ToolingSettings
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.action_clear_transcription_cache
-import kaptionit.composeapp.generated.resources.action_close
-import kaptionit.composeapp.generated.resources.action_confirm
-import kaptionit.composeapp.generated.resources.desc_transcription_cache
-import kaptionit.composeapp.generated.resources.dialog_about_body
-import kaptionit.composeapp.generated.resources.dialog_about_title
-import kaptionit.composeapp.generated.resources.dialog_apple_help_body
-import kaptionit.composeapp.generated.resources.dialog_apple_help_link
-import kaptionit.composeapp.generated.resources.dialog_apple_help_title
-import kaptionit.composeapp.generated.resources.dialog_apple_help_url
-import kaptionit.composeapp.generated.resources.dialog_custom_llm_help_body
-import kaptionit.composeapp.generated.resources.dialog_custom_llm_help_title
-import kaptionit.composeapp.generated.resources.dialog_deepl_help_body
-import kaptionit.composeapp.generated.resources.dialog_deepl_help_link
-import kaptionit.composeapp.generated.resources.dialog_deepl_help_title
-import kaptionit.composeapp.generated.resources.dialog_deepl_help_url
-import kaptionit.composeapp.generated.resources.dialog_google_help_body
-import kaptionit.composeapp.generated.resources.dialog_google_help_link
-import kaptionit.composeapp.generated.resources.dialog_google_help_title
-import kaptionit.composeapp.generated.resources.dialog_google_help_url
-import kaptionit.composeapp.generated.resources.dialog_mineru_help_body
-import kaptionit.composeapp.generated.resources.dialog_mineru_help_link
-import kaptionit.composeapp.generated.resources.dialog_mineru_help_title
-import kaptionit.composeapp.generated.resources.dialog_mineru_help_url
-import kaptionit.composeapp.generated.resources.engine_apple
-import kaptionit.composeapp.generated.resources.engine_deepl
-import kaptionit.composeapp.generated.resources.engine_google
-import kaptionit.composeapp.generated.resources.engine_openai
-import kaptionit.composeapp.generated.resources.label_deepl_key
-import kaptionit.composeapp.generated.resources.label_google_api_key
-import kaptionit.composeapp.generated.resources.label_mineru_token
-import kaptionit.composeapp.generated.resources.label_openai_base_url
-import kaptionit.composeapp.generated.resources.label_openai_key
-import kaptionit.composeapp.generated.resources.label_openai_model
-import kaptionit.composeapp.generated.resources.locale_switch_to_en
-import kaptionit.composeapp.generated.resources.locale_switch_to_zh
-import kaptionit.composeapp.generated.resources.section_mineru
-import kaptionit.composeapp.generated.resources.section_transcription_cache
-import kaptionit.composeapp.generated.resources.section_translation
+import com.danteandroid.transbee.AppTheme
+import com.danteandroid.transbee.settings.ToolingSettings
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.action_clear_transcription_cache
+import transbee.composeapp.generated.resources.action_close
+import transbee.composeapp.generated.resources.action_confirm
+import transbee.composeapp.generated.resources.desc_transcription_cache
+import transbee.composeapp.generated.resources.dialog_about_body
+import transbee.composeapp.generated.resources.dialog_about_title
+import transbee.composeapp.generated.resources.dialog_apple_help_body
+import transbee.composeapp.generated.resources.dialog_apple_help_link
+import transbee.composeapp.generated.resources.dialog_apple_help_title
+import transbee.composeapp.generated.resources.dialog_apple_help_url
+import transbee.composeapp.generated.resources.dialog_custom_llm_help_body
+import transbee.composeapp.generated.resources.dialog_custom_llm_help_title
+import transbee.composeapp.generated.resources.dialog_deepl_help_body
+import transbee.composeapp.generated.resources.dialog_deepl_help_link
+import transbee.composeapp.generated.resources.dialog_deepl_help_title
+import transbee.composeapp.generated.resources.dialog_deepl_help_url
+import transbee.composeapp.generated.resources.dialog_google_help_body
+import transbee.composeapp.generated.resources.dialog_google_help_link
+import transbee.composeapp.generated.resources.dialog_google_help_title
+import transbee.composeapp.generated.resources.dialog_google_help_url
+import transbee.composeapp.generated.resources.dialog_mineru_help_body
+import transbee.composeapp.generated.resources.dialog_mineru_help_link
+import transbee.composeapp.generated.resources.dialog_mineru_help_title
+import transbee.composeapp.generated.resources.dialog_mineru_help_url
+import transbee.composeapp.generated.resources.engine_apple
+import transbee.composeapp.generated.resources.engine_deepl
+import transbee.composeapp.generated.resources.engine_google
+import transbee.composeapp.generated.resources.engine_openai
+import transbee.composeapp.generated.resources.label_deepl_key
+import transbee.composeapp.generated.resources.label_google_api_key
+import transbee.composeapp.generated.resources.label_mineru_token
+import transbee.composeapp.generated.resources.label_openai_base_url
+import transbee.composeapp.generated.resources.label_openai_key
+import transbee.composeapp.generated.resources.label_openai_model
+import transbee.composeapp.generated.resources.locale_switch_to_en
+import transbee.composeapp.generated.resources.locale_switch_to_zh
+import transbee.composeapp.generated.resources.section_mineru
+import transbee.composeapp.generated.resources.section_transcription_cache
+import transbee.composeapp.generated.resources.section_translation
 
 @Composable
 fun AppSettingDialog(
@@ -125,7 +125,7 @@ fun AppSettingDialog(
                     Text(
                         stringResource(
                             Res.string.dialog_about_body,
-                            com.danteandroid.kaptionit.bundled.BuildConfig.APP_VERSION
+                            com.danteandroid.transbee.bundled.BuildConfig.APP_VERSION
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

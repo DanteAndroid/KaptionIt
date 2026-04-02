@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.whisper
+package com.danteandroid.transbee.whisper
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

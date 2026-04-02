@@ -1,5 +1,5 @@
 <p align="center">
-  <strong>KaptionIt</strong>
+  <strong>Transbee</strong>
 </p>
 
 <p align="center">
@@ -16,7 +16,8 @@
 <a name="english"></a>
 ## English
 
-**KaptionIt** is a **desktop** app for **speech-to-text**, **translation**, and **bilingual subtitle export** (SRT, VTT, TXT). 
+**Transbee** is a **desktop** app for **speech-to-text**, **translation**, and **bilingual subtitle
+export** (SRT, VTT, TXT).
 
 ### Features
 
@@ -55,7 +56,8 @@ This project is licensed under [**CC BY-ND 4.0**](https://creativecommons.org/li
 <a name="chinese"></a>
 ## 中文
 
-**KaptionIt** 是一款支持 **语音转文字**、**翻译** 以及 **双语字幕导出** (SRT, VTT, TXT) 的 **桌面端** 应用。
+**Transbee** 是一款支持 **语音转文字**、**翻译** 以及 **双语字幕导出** (SRT, VTT, TXT) 的 **桌面端**
+应用。
 
 ### 功能特点
 

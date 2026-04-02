@@ -1,7 +1,7 @@
-package com.danteandroid.kaptionit.settings
+package com.danteandroid.transbee.settings
 
-import com.danteandroid.kaptionit.translate.TranslationEngine
-import com.danteandroid.kaptionit.utils.OsUtils
+import com.danteandroid.transbee.translate.TranslationEngine
+import com.danteandroid.transbee.utils.OsUtils
 import kotlinx.serialization.Serializable
 
 @Serializable

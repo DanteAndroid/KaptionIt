@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.screen
+package com.danteandroid.transbee.screen
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
@@ -51,40 +51,40 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.danteandroid.kaptionit.AppTheme
-import com.danteandroid.kaptionit.KaptionItTheme
-import com.danteandroid.kaptionit.settings.PdfTranslateFormat
-import com.danteandroid.kaptionit.settings.ToolingSettings
-import com.danteandroid.kaptionit.translate.TranslationEngine
-import com.danteandroid.kaptionit.ui.ExportFormat
-import com.danteandroid.kaptionit.ui.ModelDownloadUiState
-import com.danteandroid.kaptionit.ui.SubtitleOutputKind
-import com.danteandroid.kaptionit.ui.labelRes
-import com.danteandroid.kaptionit.ui.targetLanguageOptions
-import com.danteandroid.kaptionit.ui.whisperTranscriptionLanguageOptions
-import com.danteandroid.kaptionit.whisper.WhisperModelCatalog
-import com.danteandroid.kaptionit.whisper.WhisperModelOption
-import com.danteandroid.kaptionit.whisper.isDownloaded
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.action_close
-import kaptionit.composeapp.generated.resources.action_download
-import kaptionit.composeapp.generated.resources.action_stop_download
-import kaptionit.composeapp.generated.resources.dialog_vad_desc
-import kaptionit.composeapp.generated.resources.label_markdown_format
-import kaptionit.composeapp.generated.resources.label_recognition_model
-import kaptionit.composeapp.generated.resources.label_subtitle_content
-import kaptionit.composeapp.generated.resources.label_subtitle_format
-import kaptionit.composeapp.generated.resources.label_target_language
-import kaptionit.composeapp.generated.resources.label_translation_engine
-import kaptionit.composeapp.generated.resources.label_vad_toggle
-import kaptionit.composeapp.generated.resources.label_whisper_language
-import kaptionit.composeapp.generated.resources.model_group_english_only
-import kaptionit.composeapp.generated.resources.model_group_general
-import kaptionit.composeapp.generated.resources.section_export
-import kaptionit.composeapp.generated.resources.section_model_settings
-import kaptionit.composeapp.generated.resources.section_translation
-import kaptionit.composeapp.generated.resources.section_vad
+import com.danteandroid.transbee.AppTheme
+import com.danteandroid.transbee.TransbeeTheme
+import com.danteandroid.transbee.settings.PdfTranslateFormat
+import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.translate.TranslationEngine
+import com.danteandroid.transbee.ui.ExportFormat
+import com.danteandroid.transbee.ui.ModelDownloadUiState
+import com.danteandroid.transbee.ui.SubtitleOutputKind
+import com.danteandroid.transbee.ui.labelRes
+import com.danteandroid.transbee.ui.targetLanguageOptions
+import com.danteandroid.transbee.ui.whisperTranscriptionLanguageOptions
+import com.danteandroid.transbee.whisper.WhisperModelCatalog
+import com.danteandroid.transbee.whisper.WhisperModelOption
+import com.danteandroid.transbee.whisper.isDownloaded
 import org.jetbrains.compose.resources.stringResource
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.action_close
+import transbee.composeapp.generated.resources.action_download
+import transbee.composeapp.generated.resources.action_stop_download
+import transbee.composeapp.generated.resources.dialog_vad_desc
+import transbee.composeapp.generated.resources.label_markdown_format
+import transbee.composeapp.generated.resources.label_recognition_model
+import transbee.composeapp.generated.resources.label_subtitle_content
+import transbee.composeapp.generated.resources.label_subtitle_format
+import transbee.composeapp.generated.resources.label_target_language
+import transbee.composeapp.generated.resources.label_translation_engine
+import transbee.composeapp.generated.resources.label_vad_toggle
+import transbee.composeapp.generated.resources.label_whisper_language
+import transbee.composeapp.generated.resources.model_group_english_only
+import transbee.composeapp.generated.resources.model_group_general
+import transbee.composeapp.generated.resources.section_export
+import transbee.composeapp.generated.resources.section_model_settings
+import transbee.composeapp.generated.resources.section_translation
+import transbee.composeapp.generated.resources.section_vad
 
 private val panelCardColors
     @Composable get() = CardDefaults.cardColors(
@@ -269,6 +269,7 @@ private fun ModelGroupHeader(text: String) {
 fun TranslationSettingCard(
     tooling: ToolingSettings,
     onUpdateTooling: ((ToolingSettings) -> ToolingSettings) -> Unit,
+    onTranslationEngineChanged: (TranslationEngine) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val spacing = AppTheme.spacing
@@ -332,13 +333,14 @@ fun TranslationSettingCard(
                     onDismissRequest = { engineExpanded = false },
                     modifier = Modifier.width(menuWidth)
                 ) {
-                    TranslationEngine.entries.filter { it != TranslationEngine.APPLE || com.danteandroid.kaptionit.utils.OsUtils.isMacOs() }
+                    TranslationEngine.entries.filter { it != TranslationEngine.APPLE || com.danteandroid.transbee.utils.OsUtils.isMacOs() }
                         .forEach { eng ->
                         DropdownMenuItem(
                             text = { Text(stringResource(eng.labelRes)) },
                             onClick = {
                                 onUpdateTooling { it.copy(translationEngine = eng) }
                                 engineExpanded = false
+                                onTranslationEngineChanged(eng)
                             },
                         )
                     }
@@ -431,7 +433,8 @@ fun ExportSettingCard(
 
             Text(
                 stringResource(Res.string.label_markdown_format),
-                style = MaterialTheme.typography.labelMedium
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(top = spacing.medium),
             )
             Box(Modifier.fillMaxWidth()) {
                 OutlinedButton(
@@ -501,7 +504,7 @@ private fun WhisperModelMenuItems(
 @Preview
 @Composable
 private fun ModelSettingCardPreview() {
-    KaptionItTheme {
+    TransbeeTheme {
         val presets = WhisperModelCatalog.presets
         Column(Modifier.padding(16.dp)) {
             ModelSettingCard(
@@ -522,7 +525,7 @@ private fun ModelSettingCardPreview() {
 @Preview
 @Composable
 private fun TranslationSettingCardPreview() {
-    KaptionItTheme {
+    TransbeeTheme {
         Column(Modifier.padding(16.dp)) {
             TranslationSettingCard(tooling = ToolingSettings(), onUpdateTooling = {})
         }
@@ -532,7 +535,7 @@ private fun TranslationSettingCardPreview() {
 @Preview
 @Composable
 private fun ExportSettingCardPreview() {
-    KaptionItTheme {
+    TransbeeTheme {
         Column(Modifier.padding(16.dp)) {
             ExportSettingCard(tooling = ToolingSettings(), onUpdateTooling = {})
         }

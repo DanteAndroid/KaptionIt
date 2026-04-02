@@ -1,4 +1,4 @@
-package com.danteandroid.kaptionit.process
+package com.danteandroid.transbee.process
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive

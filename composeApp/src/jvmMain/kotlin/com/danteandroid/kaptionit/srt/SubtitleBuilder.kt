@@ -1,15 +1,15 @@
-package com.danteandroid.kaptionit.srt
+package com.danteandroid.transbee.srt
 
-import com.danteandroid.kaptionit.settings.ToolingSettings
-import com.danteandroid.kaptionit.translate.TargetLanguageMapper
-import com.danteandroid.kaptionit.translate.TranslationMetrics
-import com.danteandroid.kaptionit.translate.TranslationService
-import com.danteandroid.kaptionit.ui.TranslationTaskStats
-import com.danteandroid.kaptionit.utils.JvmResourceStrings
-import com.danteandroid.kaptionit.whisper.WhisperParseResult
-import kaptionit.composeapp.generated.resources.Res
-import kaptionit.composeapp.generated.resources.err_no_segments
-import kaptionit.composeapp.generated.resources.msg_skip_translate
+import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.translate.TargetLanguageMapper
+import com.danteandroid.transbee.translate.TranslationMetrics
+import com.danteandroid.transbee.translate.TranslationService
+import com.danteandroid.transbee.ui.TranslationTaskStats
+import com.danteandroid.transbee.utils.JvmResourceStrings
+import com.danteandroid.transbee.whisper.WhisperParseResult
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_no_segments
+import transbee.composeapp.generated.resources.msg_skip_translate
 
 data class SubtitleBuildResult(
     val files: List<SubtitleExporter.ExportFile>,
