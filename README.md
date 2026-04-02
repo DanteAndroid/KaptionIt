@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="#english"><img src="screenshot.png" alt="Screenshot" width="618" height="512"></a>
+  <a href="#english"><img src="screenshot.png" alt="Screenshot" width="528" height="512"></a>
 </p>
 
 
