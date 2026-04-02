@@ -311,17 +311,13 @@ object PipelineEngine {
                 if (translatableTotal == 0) 1f else 0f,
                 false
             )
-            val translated = if (cfg.pdfTranslateFormat == PdfTranslateFormat.SOURCE) {
-                paragraphs
-            } else {
-                MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
-                    val t = total.coerceAtLeast(1)
-                    listener.onProgress(
-                        JvmResourceStrings.text(Res.string.msg_pdf_translating, done, total),
-                        done.toFloat() / t,
-                        false,
-                    )
-                }
+            val translated = MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
+                val t = total.coerceAtLeast(1)
+                listener.onProgress(
+                    JvmResourceStrings.text(Res.string.msg_pdf_translating, done, total),
+                    done.toFloat() / t,
+                    false,
+                )
             }
             val assembled = MdTranslator.assemble(paragraphs, translated, cfg.pdfTranslateFormat)
             destMdFile.writeText(assembled)
@@ -348,17 +344,13 @@ object PipelineEngine {
             )
             val mdContent = withContext(Dispatchers.IO) { file.readText() }
             val paragraphs = MdTranslator.splitParagraphs(mdContent)
-            val translated = if (cfg.pdfTranslateFormat == PdfTranslateFormat.SOURCE) {
-                paragraphs
-            } else {
-                MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
-                    val t = total.coerceAtLeast(1)
-                    listener.onProgress(
-                        JvmResourceStrings.text(Res.string.msg_text_translate_progress, done, total),
-                        done.toFloat() / t,
-                        false,
-                    )
-                }
+            val translated = MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
+                val t = total.coerceAtLeast(1)
+                listener.onProgress(
+                    JvmResourceStrings.text(Res.string.msg_text_translate_progress, done, total),
+                    done.toFloat() / t,
+                    false,
+                )
             }
             val assembled = MdTranslator.assemble(paragraphs, translated, cfg.pdfTranslateFormat)
             val destFile = File(file.parentFile, "${file.nameWithoutExtension}_translated.md")

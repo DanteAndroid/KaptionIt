@@ -3,7 +3,6 @@ package com.danteandroid.transbee.settings
 import com.danteandroid.transbee.translate.TranslationEngine
 import com.danteandroid.transbee.utils.OsUtils
 import kotlinx.serialization.Serializable
-import java.io.File
 
 @Serializable
 enum class PdfTranslateFormat {
@@ -15,9 +14,6 @@ enum class PdfTranslateFormat {
 
     /** 全部译文在前，全部原文在后 */
     TRANSLATION_FIRST,
-
-    /** 仅包含原文内容 */
-    SOURCE,
 }
 
 @Serializable
@@ -71,7 +67,6 @@ data class ToolingSettings(
 
     companion object {
         fun fromEnvironment(): ToolingSettings = ToolingSettings(
-            whisperModel = defaultWhisperModelPath(),
             translationEngine = TranslationEngine.APPLE,
             appleTranslateBinary = System.getenv("APPLE_TRANSLATE_BINARY").orEmpty(),
             googleApiKey = System.getenv("GOOGLE_TRANSLATE_API_KEY")
@@ -82,14 +77,5 @@ data class ToolingSettings(
             openAiKey = System.getenv("OPENAI_API_KEY").orEmpty(),
             targetLanguage = "简体中文",
         )
-
-        private fun defaultWhisperModelPath(): String {
-            val fileName = if (OsUtils.isMacOs()) {
-                "ggml-large-v3-turbo.bin"
-            } else {
-                "ggml-small.bin"
-            }
-            return File(File(System.getProperty("user.home"), ".transbee/models"), fileName).absolutePath
-        }
     }
 }

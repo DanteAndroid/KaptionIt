@@ -25,7 +25,6 @@ import transbee.composeapp.generated.resources.lang_zh_cn
 import transbee.composeapp.generated.resources.lang_zh_tw
 import transbee.composeapp.generated.resources.pdf_format_bilingual
 import transbee.composeapp.generated.resources.pdf_format_original_first
-import transbee.composeapp.generated.resources.pdf_format_source
 import transbee.composeapp.generated.resources.pdf_format_translation_first
 import transbee.composeapp.generated.resources.phase_cancelled
 import transbee.composeapp.generated.resources.phase_done
@@ -92,7 +91,6 @@ val PdfTranslateFormat.labelRes: StringResource
         PdfTranslateFormat.BILINGUAL -> Res.string.pdf_format_bilingual
         PdfTranslateFormat.ORIGINAL_FIRST -> Res.string.pdf_format_original_first
         PdfTranslateFormat.TRANSLATION_FIRST -> Res.string.pdf_format_translation_first
-        PdfTranslateFormat.SOURCE -> Res.string.pdf_format_source
     }
 
 val PipelinePhase.label: String

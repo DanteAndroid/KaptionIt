@@ -179,10 +179,6 @@ object MdTranslator {
                 append("\n\n---\n\n")
                 append(originals.joinToString("\n\n"))
             }
-
-            PdfTranslateFormat.SOURCE -> {
-                append(originals.joinToString("\n\n"))
-            }
         }
         append('\n')
     }

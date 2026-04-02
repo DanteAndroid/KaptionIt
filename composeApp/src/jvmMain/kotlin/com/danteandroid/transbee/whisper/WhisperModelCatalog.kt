@@ -1,6 +1,5 @@
 package com.danteandroid.transbee.whisper
 
-import com.danteandroid.transbee.utils.OsUtils
 import java.io.File
 
 data class WhisperModelOption(
@@ -21,18 +20,10 @@ fun WhisperModelOption.isDownloaded(): Boolean =
 object WhisperModelCatalog {
     val presetsMain: List<WhisperModelOption> = listOf(
         WhisperModelOption("tiny", "tiny（75MB）", "ggml-tiny.bin"),
-        WhisperModelOption("base", "base（148MB）", "ggml-base.bin"),
-        WhisperModelOption(
-            "small",
-            if (OsUtils.isMacOs()) "small（488MB）" else "small（488MB，推荐）",
-            "ggml-small.bin"
-        ),
+        WhisperModelOption("base", "base（148MB，推荐）", "ggml-base.bin"),
+        WhisperModelOption("small", "small（488MB）", "ggml-small.bin"),
         WhisperModelOption("medium", "medium（1.5GB）", "ggml-medium.bin"),
-        WhisperModelOption(
-            "large-v3-turbo",
-            if (OsUtils.isMacOs()) "large-v3-turbo（1.6GB，推荐）" else "large-v3-turbo（1.6GB）",
-            "ggml-large-v3-turbo.bin"
-        ),
+        WhisperModelOption("large-v3-turbo", "large-v3-turbo（1.6GB）", "ggml-large-v3-turbo.bin"),
         WhisperModelOption("large-v3", "large-v3（3GB）", "ggml-large-v3.bin"),
     )
 

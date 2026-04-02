@@ -176,14 +176,8 @@ class PipelineViewModel : ViewModel() {
                 if (cfg.openAiKey.isBlank()) JvmResourceStrings.text(Res.string.err_openai_key) else null
         }
 
-    private fun validateTranslationEngine(cfg: ToolingSettings): String? {
-        val subtitleOnlySource = cfg.subtitleOutputs.size == 1 && cfg.subtitleOutputs.contains("source")
-        val markdownOnlySource = cfg.pdfTranslateFormat == PdfTranslateFormat.SOURCE
-        if (subtitleOnlySource && markdownOnlySource && cfg.translationEngine == TranslationEngine.APPLE) {
-            return null
-        }
-        return missingKeyMessageForEngine(cfg.translationEngine, cfg)
-    }
+    private fun validateTranslationEngine(cfg: ToolingSettings): String? =
+        missingKeyMessageForEngine(cfg.translationEngine, cfg)
 
     fun onFilesSelected(files: List<File>): List<String> {
         if (files.isEmpty()) return emptyList()

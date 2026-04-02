@@ -79,8 +79,7 @@ fun App() {
     val modelDl by viewModel.modelDownload.collectAsState()
     val presets = remember { WhisperModelCatalog.presets }
     var selectedPreset by remember {
-        val defaultId = if (com.danteandroid.transbee.utils.OsUtils.isMacOs()) "large-v3-turbo" else "small"
-        mutableStateOf(presets.firstOrNull { it.id == defaultId } ?: presets.first())
+        mutableStateOf(presets.firstOrNull { it.id == "base" } ?: presets.first())
     }
     var showSetting by remember { mutableStateOf(false) }
     var showTranslationTestDialog by remember { mutableStateOf(false) }
