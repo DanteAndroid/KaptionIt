@@ -1,5 +1,6 @@
 <p align="center">
-  <strong>Transbee</strong>
+  <img src="composeApp/icons/app_icon.png" alt="Transbee Icon" width="128 height="118" style="vertical-align: middle;">
+  <span style="font-size: 2.2rem; font-weight: bold; vertical-align: middle;">Transbee</span>
 </p>
 
 <p align="center">
@@ -14,6 +15,7 @@
 ---
 
 <a name="english"></a>
+
 ## English
 
 **Transbee** is a **desktop** app for **speech-to-text**, **translation**, and **bilingual subtitle
