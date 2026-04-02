@@ -1,6 +1,6 @@
 <p align="center">
-  <img src="composeApp/icons/app_icon.png" alt="Transbee Icon" width="128 height="118" style="vertical-align: middle;">
-  <span style="font-size: 2.2rem; font-weight: bold; vertical-align: middle;">Transbee</span>
+  <img src="composeApp/icons/app_icon.png" alt="Transbee Icon" width="256">
+  <h1 align="center">Transbee</h1>
 </p>
 
 <p align="center">
@@ -11,8 +11,6 @@
   <a href="#english"><img src="screenshot.png" alt="Screenshot" width="528" height="512"></a>
 </p>
 
-
----
 
 <a name="english"></a>
 
