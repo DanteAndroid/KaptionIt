@@ -107,18 +107,19 @@ fun main() {
             state = windowState,
             icon = painterResource(Res.drawable.app_icon),
         ) {
-            SideEffect {
-                SwingUtilities.invokeLater {
-                    when {
-                        isMacOs() -> {
-                            window.rootPane.apply {
-                                putClientProperty("apple.awt.fullWindowContent", true)
-                                putClientProperty("apple.awt.transparentTitleBar", true)
-                                putClientProperty("apple.awt.windowTitleVisible", false)
-                            }
+            if (isMacOs()) {
+                SideEffect {
+                    SwingUtilities.invokeLater {
+                        window.rootPane.apply {
+                            putClientProperty("apple.awt.fullWindowContent", true)
+                            putClientProperty("apple.awt.transparentTitleBar", true)
+                            putClientProperty("apple.awt.windowTitleVisible", false)
                         }
-                        isWindowsOs() -> applyWindowsImmersiveDarkTitleBarIfNeeded(window)
                     }
+                }
+            } else if (isWindowsOs()) {
+                LaunchedEffect(window) {
+                    scheduleApplyWindowsTitleBarDarkMode(window)
                 }
             }
             App(

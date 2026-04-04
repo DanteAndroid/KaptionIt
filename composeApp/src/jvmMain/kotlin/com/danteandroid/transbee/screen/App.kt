@@ -221,7 +221,6 @@ fun App(topWindowInset: Dp = 0.dp) {
                                     .padding(bottom = 16.dp),
                             )
                         }
-                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
                         StatusBarRow(
                             modelDownload = modelDl,
                             onTranslationServiceClick = { showTranslationServiceDialog = true },

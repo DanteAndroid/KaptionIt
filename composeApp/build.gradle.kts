@@ -368,7 +368,13 @@ val syncBundledWhisperCli = tasks.register("syncBundledWhisperCli") {
 compose.desktop {
     application {
         mainClass = "com.danteandroid.transbee.MainKt"
-        jvmArgs("-Djava.net.useSystemProxies=true")
+        jvmArgs(
+            "-Djava.net.useSystemProxies=true",
+            "--add-opens",
+            "java.desktop/java.awt=ALL-UNNAMED",
+            "--add-opens",
+            "java.desktop/sun.awt.windows=ALL-UNNAMED",
+        )
 
         nativeDistributions {
             modules("java.net.http")
