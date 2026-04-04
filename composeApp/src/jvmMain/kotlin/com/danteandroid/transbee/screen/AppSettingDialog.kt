@@ -3,7 +3,9 @@
 package com.danteandroid.transbee.screen
 
 import androidx.compose.foundation.clickable
+import com.danteandroid.transbee.ui.AppVerticalScrollbar
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -110,118 +112,126 @@ fun AppSettingDialog(
         },
         title = { Text(stringResource(Res.string.dialog_about_title)) },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 500.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.medium),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            val scrollState = rememberScrollState()
+            Box(Modifier.heightIn(max = 500.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(scrollState)
+                        .padding(start = spacing.large, end = 24.dp), // Match sidebar gap
+                    verticalArrangement = Arrangement.spacedBy(spacing.medium),
                 ) {
-                    Text(
-                        stringResource(
-                            Res.string.dialog_about_body,
-                            com.danteandroid.transbee.bundled.BuildConfig.APP_VERSION
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.small)) {
-                        TextButton(onClick = onLocaleZh) {
-                            Text(
-                                stringResource(Res.string.locale_switch_to_zh),
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                        TextButton(onClick = onLocaleEn) {
-                            Text(
-                                stringResource(Res.string.locale_switch_to_en),
-                                style = MaterialTheme.typography.labelMedium
-                            )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(
+                                Res.string.dialog_about_body,
+                                com.danteandroid.transbee.bundled.BuildConfig.APP_VERSION
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.small)) {
+                            TextButton(onClick = onLocaleZh) {
+                                Text(
+                                    stringResource(Res.string.locale_switch_to_zh),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                            TextButton(onClick = onLocaleEn) {
+                                Text(
+                                    stringResource(Res.string.locale_switch_to_en),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
                         }
                     }
-                }
 
-                HorizontalDivider()
-                Text(
-                    stringResource(Res.string.section_translation),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-
-                // Google Translate
-                EngineHeader(stringResource(Res.string.engine_google)) {
-                    showGoogleHelp = true
-                }
-                ToolingTextField(
-                    value = tooling.googleApiKey,
-                    onValueChange = { newValue -> onUpdateTooling { s -> s.copy(googleApiKey = newValue) } },
-                    labelRes = Res.string.label_google_api_key,
-                )
-
-                // DeepL
-                EngineHeader(stringResource(Res.string.engine_deepl)) {
-                    showDeepLHelp = true
-                }
-                ToolingTextField(
-                    value = tooling.deeplApiKey,
-                    onValueChange = { newValue -> onUpdateTooling { s -> s.copy(deeplApiKey = newValue) } },
-                    labelRes = Res.string.label_deepl_key,
-                )
-
-                // OpenAI / Custom LLM
-                EngineHeader(stringResource(Res.string.engine_openai)) {
-                    showCustomLlmHelp = true
-                }
-                ToolingTextField(
-                    value = tooling.openAiKey,
-                    onValueChange = { newValue -> onUpdateTooling { s -> s.copy(openAiKey = newValue) } },
-                    labelRes = Res.string.label_openai_key,
-                )
-                ToolingTextField(
-                    value = tooling.openAiBaseUrl,
-                    onValueChange = { newValue -> onUpdateTooling { s -> s.copy(openAiBaseUrl = newValue) } },
-                    labelRes = Res.string.label_openai_base_url,
-                )
-                ToolingTextField(
-                    value = tooling.openAiModel,
-                    onValueChange = { newValue -> onUpdateTooling { s -> s.copy(openAiModel = newValue.lowercase()) } },
-                    labelRes = Res.string.label_openai_model,
-                )
-
-                // Apple Translate
-                EngineHeader(stringResource(Res.string.engine_apple)) {
-                    showAppleHelp = true
-                }
-
-                HorizontalDivider()
-                EngineHeader(stringResource(Res.string.section_mineru)) {
-                    showMinerUHelp = true
-                }
-                ToolingTextField(
-                    value = tooling.minerUToken,
-                    onValueChange = { newValue -> onUpdateTooling { s -> s.copy(minerUToken = newValue) } },
-                    labelRes = Res.string.label_mineru_token,
-                )
-
-                HorizontalDivider()
-                Text(
-                    stringResource(Res.string.section_transcription_cache),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    stringResource(Res.string.desc_transcription_cache),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TextButton(onClick = onClearTranscriptionCache) {
+                    HorizontalDivider()
                     Text(
-                        stringResource(Res.string.action_clear_transcription_cache),
-                        style = MaterialTheme.typography.labelMedium,
+                        stringResource(Res.string.section_translation),
+                        style = MaterialTheme.typography.titleSmall,
                     )
+
+                    // Google Translate
+                    EngineHeader(stringResource(Res.string.engine_google)) {
+                        showGoogleHelp = true
+                    }
+                    ToolingTextField(
+                        value = tooling.googleApiKey,
+                        onValueChange = { newValue -> onUpdateTooling { s -> s.copy(googleApiKey = newValue) } },
+                        labelRes = Res.string.label_google_api_key,
+                    )
+
+                    // DeepL
+                    EngineHeader(stringResource(Res.string.engine_deepl)) {
+                        showDeepLHelp = true
+                    }
+                    ToolingTextField(
+                        value = tooling.deeplApiKey,
+                        onValueChange = { newValue -> onUpdateTooling { s -> s.copy(deeplApiKey = newValue) } },
+                        labelRes = Res.string.label_deepl_key,
+                    )
+
+                    // OpenAI / Custom LLM
+                    EngineHeader(stringResource(Res.string.engine_openai)) {
+                        showCustomLlmHelp = true
+                    }
+                    ToolingTextField(
+                        value = tooling.openAiKey,
+                        onValueChange = { newValue -> onUpdateTooling { s -> s.copy(openAiKey = newValue) } },
+                        labelRes = Res.string.label_openai_key,
+                    )
+                    ToolingTextField(
+                        value = tooling.openAiBaseUrl,
+                        onValueChange = { newValue -> onUpdateTooling { s -> s.copy(openAiBaseUrl = newValue) } },
+                        labelRes = Res.string.label_openai_base_url,
+                    )
+                    ToolingTextField(
+                        value = tooling.openAiModel,
+                        onValueChange = { newValue -> onUpdateTooling { s -> s.copy(openAiModel = newValue.lowercase()) } },
+                        labelRes = Res.string.label_openai_model,
+                    )
+
+                    // Apple Translate
+                    EngineHeader(stringResource(Res.string.engine_apple)) {
+                        showAppleHelp = true
+                    }
+
+                    HorizontalDivider()
+                    EngineHeader(stringResource(Res.string.section_mineru)) {
+                        showMinerUHelp = true
+                    }
+                    ToolingTextField(
+                        value = tooling.minerUToken,
+                        onValueChange = { newValue -> onUpdateTooling { s -> s.copy(minerUToken = newValue) } },
+                        labelRes = Res.string.label_mineru_token,
+                    )
+
+                    HorizontalDivider()
+                    Text(
+                        stringResource(Res.string.section_transcription_cache),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        stringResource(Res.string.desc_transcription_cache),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onClearTranscriptionCache) {
+                        Text(
+                            stringResource(Res.string.action_clear_transcription_cache),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
                 }
+                com.danteandroid.transbee.ui.AppVerticalScrollbar(
+                    scrollState = scrollState,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
             }
         },
     )

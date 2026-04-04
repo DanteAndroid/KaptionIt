@@ -185,7 +185,14 @@ class OpenAiTranslator(
             .timeout(TranslationHttp.requestTimeoutLlm)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build()
-        val response = TranslationHttp.sendString(http, request)
+
+        var http520Retries = 0
+        var response = TranslationHttp.sendString(http, request)
+        while (response.statusCode() == 520 && !enforceSubtitleBatchRules && http520Retries < 2) {
+            http520Retries++
+            Thread.sleep(500L * http520Retries)
+            response = TranslationHttp.sendString(http, request)
+        }
 
         if (response.statusCode() !in 200..299) {
             val code = response.statusCode()

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -32,12 +33,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
@@ -81,14 +85,12 @@ import transbee.composeapp.generated.resources.action_delete_all
 import transbee.composeapp.generated.resources.action_pause_all
 import transbee.composeapp.generated.resources.action_settings
 import transbee.composeapp.generated.resources.action_start_all
-import transbee.composeapp.generated.resources.action_test
+import transbee.composeapp.generated.resources.action_translation_service
 import transbee.composeapp.generated.resources.app_title
 import transbee.composeapp.generated.resources.confirm_delete_all
 import transbee.composeapp.generated.resources.drag_to_start_hint
 import transbee.composeapp.generated.resources.drop_zone_hint
 import transbee.composeapp.generated.resources.state_downloading
-import transbee.composeapp.generated.resources.status_free_space_prefix
-import transbee.composeapp.generated.resources.status_model_prefix
 import transbee.composeapp.generated.resources.tasks_completed
 import transbee.composeapp.generated.resources.tasks_processing
 import transbee.composeapp.generated.resources.drop_zone_hint_formats
@@ -96,6 +98,42 @@ import java.io.File
 
 private val taskSortComparator =
     compareByDescending<TaskRecord> { it.phase.isActivelyProcessing() }.thenBy { it.createdAtMs }
+
+private val completedTaskTimeDescending: Comparator<TaskRecord> = compareByDescending { task ->
+    val t = task.completedAtMs
+    if (t > 0L) t else task.createdAtMs
+}
+
+/** 与翻译服务字幕区一致：描边 + 淡黄底（随主题 primary） */
+@Composable
+internal fun SubtitleAccentOutlinedButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    content: @Composable RowScope.() -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            contentColor = MaterialTheme.colorScheme.primary,
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+            disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f),
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+        contentPadding = contentPadding,
+    ) {
+        ProvideTextStyle(
+            value = MaterialTheme.typography.labelLarge.copy(color = Color.Unspecified),
+        ) {
+            content()
+        }
+    }
+}
 
 private val allowedExtensions = setOf(
     "mp4", "mkv", "avi", "mov", "webm", "flv", "wmv", // Video
@@ -188,20 +226,18 @@ fun AppTaskScreen(
                             modifier = Modifier.padding(top = 12.dp)
                         )
                         Spacer(Modifier.height(40.dp))
-                        OutlinedButton(
+                        SubtitleAccentOutlinedButton(
                             onClick = {
                                 scope.launch {
                                     val files = withContext(Dispatchers.IO) { pickFilesWithChooser() }
                                     if (files.isNotEmpty()) handleFilesSelection(files)
                                 }
                             },
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                         ) {
                             Text(
-                                stringResource(Res.string.action_choose_file).uppercase(),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                stringResource(Res.string.action_choose_file),
+                                style = MaterialTheme.typography.labelLarge,
                             )
                         }
                     }
@@ -228,7 +264,7 @@ fun AppTaskScreen(
                 val processingTasks = tasks.filter { it.phase != PipelinePhase.Done }
                     .sortedWith(taskSortComparator)
                 val completedTasks = tasks.filter { it.phase == PipelinePhase.Done }
-                    .sortedWith(taskSortComparator)
+                    .sortedWith(completedTaskTimeDescending)
 
                 val listState = rememberLazyListState()
                 Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -353,7 +389,11 @@ private fun TaskListHeader(
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.weight(1f))
-        TextButton(onClick = onChooseFiles) {
+        SubtitleAccentOutlinedButton(
+            onClick = onChooseFiles,
+            modifier = Modifier.height(38.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -361,11 +401,11 @@ private fun TaskListHeader(
                 Icon(
                     Icons.Default.Add,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
                 Text(
                     stringResource(Res.string.action_choose_file),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
@@ -449,7 +489,7 @@ private fun DropZone(
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
             )
             Text(stringResource(Res.string.drop_zone_hint))
-            OutlinedButton(onClick = onChooseFile) {
+            SubtitleAccentOutlinedButton(onClick = onChooseFile) {
                 Text(stringResource(Res.string.action_choose_file))
             }
         }
@@ -458,19 +498,16 @@ private fun DropZone(
 
 @Composable
 fun StatusBarRow(
-    selectedPresetId: String,
     modelDownload: ModelDownloadUiState,
-    onTranslationTestClick: () -> Unit,
+    onTranslationServiceClick: () -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = AppTheme.spacing
-    val home = remember { File(System.getProperty("user.home") ?: ".") }
-    val freeGb = remember(home) {
-        "%.0f GB".format(home.usableSpace / (1024.0 * 1024 * 1024))
-    }
     Row(
-        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.fillMaxWidth()
+            .padding(start = spacing.large, top = 12.dp, end = spacing.large, bottom = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (modelDownload.active) {
@@ -490,39 +527,26 @@ fun StatusBarRow(
                 modifier = Modifier.weight(1f),
             )
         } else {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(spacing.medium),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(Res.string.status_model_prefix, selectedPresetId),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Text(
-                    stringResource(Res.string.status_free_space_prefix, freeGb),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
             Spacer(Modifier.weight(1f))
         }
         Row(
-            horizontalArrangement = Arrangement.spacedBy(spacing.small),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(
-                onClick = onTranslationTestClick,
+                onClick = onTranslationServiceClick,
                 modifier = Modifier.height(38.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
             ) {
                 Text(
-                    stringResource(Res.string.action_test),
-                    style = MaterialTheme.typography.labelLarge
+                    stringResource(Res.string.action_translation_service),
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
             OutlinedButton(
                 onClick = onSettingsClick,
                 modifier = Modifier.height(38.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -531,7 +555,7 @@ fun StatusBarRow(
                     Text("⚙", style = MaterialTheme.typography.labelLarge)
                     Text(
                         stringResource(Res.string.action_settings),
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }
@@ -582,9 +606,8 @@ private fun AppTaskScreenPreview() {
 private fun StatusBarRowPreview() {
     TransbeeTheme {
         StatusBarRow(
-            selectedPresetId = "base",
             modelDownload = ModelDownloadUiState(),
-            onTranslationTestClick = {},
+            onTranslationServiceClick = {},
             onSettingsClick = {},
         )
     }

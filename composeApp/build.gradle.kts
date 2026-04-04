@@ -60,7 +60,11 @@ plugins {
 }
 
 kotlin {
-    jvm()
+    jvm {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -83,6 +87,7 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutinesSwing)
                 implementation(libs.kotlinx.serialization.json)
+                implementation("net.java.dev.jna:jna-platform:5.14.0")
             }
         }
     }

@@ -17,6 +17,9 @@ fun WhisperModelOption.modelFile(): File =
 fun WhisperModelOption.isDownloaded(): Boolean =
     modelFile().isFile
 
+val WhisperModelOption.displayName: String
+    get() = label.split('(', '（')[0].trim()
+
 object WhisperModelCatalog {
     val presetsMain: List<WhisperModelOption> = listOf(
         WhisperModelOption("tiny", "tiny（75MB）", "ggml-tiny.bin"),

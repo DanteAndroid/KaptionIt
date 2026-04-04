@@ -74,6 +74,7 @@ import com.danteandroid.transbee.ui.targetLanguageOptions
 import com.danteandroid.transbee.ui.whisperTranscriptionLanguageOptions
 import com.danteandroid.transbee.whisper.WhisperModelCatalog
 import com.danteandroid.transbee.whisper.WhisperModelOption
+import com.danteandroid.transbee.whisper.displayName
 import com.danteandroid.transbee.whisper.isDownloaded
 import org.jetbrains.compose.resources.stringResource
 import transbee.composeapp.generated.resources.Res
@@ -179,7 +180,7 @@ fun ModelSettingCard(
                     }
             ) {
                 OutlinedButton(onClick = { menuExpanded = true }, Modifier.fillMaxWidth()) {
-                    Text(selectedPreset.label)
+                    Text(selectedPreset.displayName)
                 }
                 PanelDropdownMenu(
                         expanded = menuExpanded,
@@ -188,10 +189,12 @@ fun ModelSettingCard(
                 ) {
                     Column(Modifier.heightIn(max = 500.dp).verticalScroll(rememberScrollState())) {
                         ModelGroupHeader(stringResource(Res.string.model_group_general))
+                        val showSize = menuWidth > 200.dp
                         WhisperModelMenuItems(
                                 models = WhisperModelCatalog.presetsMain,
                                 menuTextStyle = menuTextStyle,
                                 modelDownload = modelDownload,
+                                showSize = showSize,
                                 onSelect = {
                                     menuExpanded = false
                                     onSelectModel(it)
@@ -209,6 +212,7 @@ fun ModelSettingCard(
                                 models = WhisperModelCatalog.presetsEnglishOnly,
                                 menuTextStyle = menuTextStyle,
                                 modelDownload = modelDownload,
+                                showSize = showSize,
                                 onSelect = {
                                     menuExpanded = false
                                     onSelectModel(it)
@@ -634,6 +638,7 @@ private fun WhisperModelMenuItems(
         models: List<WhisperModelOption>,
         menuTextStyle: TextStyle,
         modelDownload: ModelDownloadUiState,
+        showSize: Boolean = true,
         onSelect: (WhisperModelOption) -> Unit,
         onDownload: (WhisperModelOption) -> Unit,
         onStopDownload: () -> Unit,
@@ -642,15 +647,16 @@ private fun WhisperModelMenuItems(
         val parts = opt.label.split("（", "）")
         val name = parts.getOrNull(0) ?: opt.label
         val size = parts.getOrNull(1)?.let { " $it" } ?: ""
+        val displaySize = if (showSize) size else ""
 
         if (opt.isDownloaded()) {
             DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(name, style = menuTextStyle)
-                            if (size.isNotEmpty()) {
+                            if (displaySize.isNotEmpty()) {
                                 Text(
-                                        size,
+                                        displaySize,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                         modifier = Modifier.padding(start = 4.dp, bottom = 1.dp)
@@ -675,9 +681,9 @@ private fun WhisperModelMenuItems(
                             style = menuTextStyle,
                             color = MaterialTheme.colorScheme.onSurface,
                     )
-                    if (size.isNotEmpty()) {
+                    if (displaySize.isNotEmpty()) {
                         Text(
-                                size,
+                                displaySize,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 modifier = Modifier.padding(start = 4.dp, bottom = 1.dp)

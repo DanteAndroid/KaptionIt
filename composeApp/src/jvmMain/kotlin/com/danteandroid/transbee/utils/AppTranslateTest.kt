@@ -15,6 +15,9 @@ import transbee.composeapp.generated.resources.test_err_deepl_key
 import transbee.composeapp.generated.resources.test_err_google_key
 import transbee.composeapp.generated.resources.test_err_openai_key
 
+/** 单行 20 个英文字符：多义词、领域缩写，用于翻译服务弹窗默认原文 */
+const val TRANSLATION_SERVICE_DEFAULT_SOURCE_EN = "Polysemy breaks NMT."
+
 private const val ENGLISH_SMOKE_TEXT =
     "Classical mythology and modern science intertwine to form a labyrinth of thought. " +
     "The will of the gods symbolizes the unknowable laws of nature, the choices of heroes reflect " +

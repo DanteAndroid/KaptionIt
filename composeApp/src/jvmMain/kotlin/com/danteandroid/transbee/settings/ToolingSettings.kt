@@ -35,6 +35,7 @@ data class ToolingSettings(
     val targetLanguage: String = "简体中文",
     val minerUToken: String = "",
     val pdfTranslateFormat: PdfTranslateFormat = PdfTranslateFormat.BILINGUAL,
+    val sidebarExpanded: Boolean = true,
 ) {
     fun normalized(): ToolingSettings {
         val normalizedOutputs = subtitleOutputs

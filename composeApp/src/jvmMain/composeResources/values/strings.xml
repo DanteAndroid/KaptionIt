@@ -2,6 +2,8 @@
 <resources>
     <string name="app_title">Transbee</string>
     <string name="action_test">测试</string>
+    <string name="action_purchase">购买</string>
+    <string name="action_translation_service">翻译服务</string>
     <string name="action_settings">设置</string>
     <string name="locale_switch_to_en">English</string>
     <string name="locale_switch_to_zh">中文</string>
@@ -36,11 +38,23 @@
     <string name="dialog_about_body">视频转录、翻译与双语字幕导出。\n版本 %1$s</string>
     <string name="action_confirm">确定</string>
     <string name="dialog_translation_test_title">翻译服务测试</string>
+    <string name="purchase_dialog_title">购买 OpenAI 翻译服务 Key</string>
+    <string name="dialog_translation_service_title">翻译服务</string>
+    <string name="translation_service_section_test">翻译测试</string>
+    <string name="translation_service_current_info">当前翻译服务：%1$s</string>
+    <string name="purchase_transfer_line1">转账8元，请备注：%1$s</string>
+    <string name="purchase_transfer_line2">校验成功后将自动写入翻译引擎相关设置。</string>
+    <string name="purchase_i_paid">我已购买</string>
+    <string name="purchase_not_verified">未检测到购买，请用支付宝联系。</string>
+    <string name="purchase_busy">校验中…</string>
+    <string name="msg_requesting">请求中</string>
+    <string name="msg_translation_service_configured">翻译服务已配置，可以使用了！</string>
     <string name="dialog_translation_test_current_engine">当前引擎：%1$s</string>
     <string name="dialog_translation_test_elapsed_ms">耗时 %1$d ms</string>
     <string name="dialog_translation_test_running">正在请求翻译…</string>
     <string name="dialog_translation_test_hint_tap_run">点击「运行测试」开始</string>
     <string name="action_run_test">运行测试</string>
+    <string name="action_test_translation">测试翻译</string>
     <string name="action_close">关闭</string>
     <string name="state_downloading">正在下载 </string>
     <string name="action_cancel">取消</string>
@@ -95,16 +109,16 @@
     <string name="dialog_mineru_help_url">https://mineru.net/apiManage/docs</string>
     <string name="dialog_custom_llm_title">自定义大模型</string>
     <string name="dialog_custom_llm_body">支持 OpenAI 和大多数国产大模型：\n\nDeepSeek：\n接口地址：https://api.deepseek.com/v1\n模型名：deepseek-chat 或 deepseek-reasoner\n\n智谱 AI (ChatGLM)：\n接口地址：https://open.bigmodel.cn/api/paas/v4/\n模型名：glm-4\n\n通义千问 (Aliyun)：\n接口地址：https://dashscope.aliyuncs.com/compatible-mode/v1\n模型名：qwen-plus 或 qwen-max</string>
-    <string name="msg_mineru_uploading">正在上传文件到 MinerU…… %1$s / %2$s</string>
+    <string name="msg_mineru_uploading">正在上传文件到 MinerU %1$s / %2$s</string>
     <string name="msg_mineru_status_waiting">等待中</string>
     <string name="msg_mineru_processing">MinerU 正在解析文档…</string>
-    <string name="msg_mineru_downloading">正在下载识别结果…… %1$s / %2$s</string>
+    <string name="msg_mineru_downloading">正在下载识别结果 %1$s / %2$s</string>
     <string name="msg_mineru_extracting">正在解压并生成 Markdown…</string>
     <string name="tasks_processing">处理中</string>
     <string name="tasks_completed">已完成</string>
     <string name="msg_total_duration">总耗时：%1$s</string>
     <string name="err_mineru_token_missing">请先在设置中填写 MinerU Token。</string>
-    <string name="msg_pdf_translating">正在翻译文档内容…… %1$d / %2$d 段…</string>
+    <string name="msg_pdf_translating">正在翻译文档内容 %1$d / %2$d 段</string>
     <string name="label_markdown_format">MD 格式</string>
     <string name="pdf_format_bilingual">逐段双语</string>
     <string name="pdf_format_original_first">先原文后译文</string>
@@ -148,14 +162,14 @@
     <string name="msg_translate_deepl_running">DeepL 翻译中…</string>
     <string name="msg_translate_openai_running">自定义大模型翻译中…</string>
     <string name="err_apple_binary">找不到本机翻译组件。</string>
-    <string name="msg_translate_apple_progress">翻译 %1$d/%2$d 条…</string>
+    <string name="msg_translate_apple_progress">翻译 %1$d/%2$d 条</string>
     <string name="dialog_apple_help_title">Apple 翻译说明</string>
     <string name="dialog_apple_help_body">Apple 翻译使用 macOS 本机翻译 API，无需网络、免费且速度快。\n\n注意：本机翻译质量可能低于在线大模型，对专有名词或复杂长句可能不够理想。\n\n使用前请确保你需要翻译的语言已下载到系统中：\n\n1. 打开「系统设置」→「通用」→「翻译与实况文本」（或直接搜索「翻译语言」）\n2. 点击可用语言旁的下载按钮</string>
     <string name="dialog_apple_help_link">在 Apple 支持网站查看如何下载翻译语言</string>
     <string name="dialog_apple_help_url">https://support.apple.com/zh-cn/guide/mac-help/mchl09c6b945/mac</string>
-    <string name="msg_translate_google_progress">翻译 %1$d/%2$d 条…</string>
-    <string name="msg_translate_deepl_progress">翻译 %1$d/%2$d 条…</string>
-    <string name="msg_translate_openai_progress">翻译 %1$d/%2$d 条…</string>
+    <string name="msg_translate_google_progress">翻译 %1$d/%2$d 条</string>
+    <string name="msg_translate_deepl_progress">翻译 %1$d/%2$d 条</string>
+    <string name="msg_translate_openai_progress">翻译 %1$d/%2$d 条</string>
     <string name="phase_done_short">完成</string>
     <string name="duration_zero">0秒</string>
     <string name="duration_format_sec_only">%1$d秒</string>
@@ -174,10 +188,12 @@
     <string name="dialog_deepl_help_body">DeepL 翻译需要 API 密钥。您可以注册 DeepL API 免费版或专业版，免费版每月支持 50 万字符。</string>
     <string name="dialog_deepl_help_link">前往 DeepL 开发者官网</string>
     <string name="dialog_deepl_help_url">https://www.deepl.com/pro-api</string>
-    <string name="hint_apple_translate_pair">提示：本机翻译使用的语言对为 %1$s → %2$s（源语言由 Whisper 根据音频自动识别，language=%3$s）。右下角「翻译服务测试」只用固定英文/中文示例句，语言对可能与此处不同。</string>
+    <string name="hint_apple_translate_pair">提示：本机翻译使用的语言对为 %1$s → %2$s（源语言由 Whisper 根据音频自动识别，language=%3$s）。右下角「测试」用于校验翻译服务。</string>
     <string name="err_unsupported_file_type">不支持的文件类型，目前只支持视频、音频、图片和常见文档。</string>
     <string name="msg_text_translating">正在翻译文本…</string>
-    <string name="msg_text_translate_progress">翻译 %1$d/%2$d 段…</string>
+    <string name="msg_text_translate_progress">翻译 %1$d/%2$d 段</string>
     <string name="drop_zone_hint_formats">MP4, MKV, MP3, AAC, PDF, DOC, MD, JPG...</string>
     <string name="action_initiate_architect">INITIATE ARCHITECT</string>
+    <string name="tooltip_collapse_sidebar">收起侧边栏</string>
+    <string name="tooltip_expand_sidebar">展开侧边栏</string>
 </resources>

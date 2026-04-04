@@ -1,6 +1,7 @@
 package com.danteandroid.transbee
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -20,9 +21,19 @@ import java.awt.Taskbar
 import java.util.Locale
 import java.util.prefs.Preferences
 import javax.imageio.ImageIO
+import javax.swing.SwingUtilities
 
 private const val WhisperitIconClasspathResource =
     "composeResources/transbee.composeapp.generated.resources/drawable/app_icon.png"
+
+private fun isMacOs(): Boolean =
+    System.getProperty("os.name")?.lowercase()?.contains("mac") == true
+
+private fun isWindowsOs(): Boolean =
+    System.getProperty("os.name")?.lowercase()?.contains("windows") == true
+
+/** 透明标题栏下，内容区相对窗口顶部的留白（避开红绿灯与标题栏区域） */
+private val MacOsFullWindowContentTopInset = 28.dp
 
 private fun applyNativeAppIconFromClasspath() {
     if (GraphicsEnvironment.isHeadless()) return
@@ -96,7 +107,23 @@ fun main() {
             state = windowState,
             icon = painterResource(Res.drawable.app_icon),
         ) {
-            App()
+            SideEffect {
+                SwingUtilities.invokeLater {
+                    when {
+                        isMacOs() -> {
+                            window.rootPane.apply {
+                                putClientProperty("apple.awt.fullWindowContent", true)
+                                putClientProperty("apple.awt.transparentTitleBar", true)
+                                putClientProperty("apple.awt.windowTitleVisible", false)
+                            }
+                        }
+                        isWindowsOs() -> applyWindowsImmersiveDarkTitleBarIfNeeded(window)
+                    }
+                }
+            }
+            App(
+                topWindowInset = if (isMacOs()) MacOsFullWindowContentTopInset else 0.dp,
+            )
         }
     }
 }

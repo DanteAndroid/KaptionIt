@@ -2,6 +2,8 @@
 <resources>
     <string name="app_title">Transbee</string>
     <string name="action_test">Test</string>
+    <string name="action_purchase">Purchase</string>
+    <string name="action_translation_service">Translation service</string>
     <string name="action_settings">Settings</string>
     <string name="locale_switch_to_en">English</string>
     <string name="locale_switch_to_zh">中文</string>
@@ -41,6 +43,18 @@
     <string name="dialog_translation_test_running">Requesting translation…</string>
     <string name="dialog_translation_test_hint_tap_run">Tap Run Test to start</string>
     <string name="action_run_test">Run Test</string>
+    <string name="action_test_translation">Test translation</string>
+    <string name="purchase_dialog_title">Purchase OpenAI translation service key</string>
+    <string name="dialog_translation_service_title">Translation service</string>
+    <string name="translation_service_section_test">Test translation</string>
+    <string name="translation_service_current_info">Current translation service: %1$s</string>
+    <string name="purchase_transfer_line1">Please transfer 8 CNY with remark: %1$s</string>
+    <string name="purchase_transfer_line2">After verification, translation engine settings will be applied automatically.</string>
+    <string name="purchase_i_paid">I have paid</string>
+    <string name="purchase_not_verified">No purchase detected. Please contact via Alipay.</string>
+    <string name="purchase_busy">Verifying…</string>
+    <string name="msg_requesting">Requesting…</string>
+    <string name="msg_translation_service_configured">Translation service is configured. You are ready to go!</string>
     <string name="action_close">Close</string>
     <string name="state_downloading">Downloading </string>
     <string name="action_cancel">Cancel</string>
@@ -96,7 +110,9 @@
     <string name="dialog_custom_llm_title">Custom LLM</string>
     <string name="dialog_custom_llm_body">Supports OpenAI and most Chinese large models:\n\nDeepSeek:\nEndpoint: https://api.deepseek.com/v1\nModel: deepseek-chat or deepseek-reasoner\n\nZhipu AI (ChatGLM):\nEndpoint: https://open.bigmodel.cn/api/paas/v4/\nModel: glm-4\n\nTongyi Qianwen (Aliyun):\nEndpoint: https://dashscope.aliyuncs.com/compatible-mode/v1\nModel: qwen-plus or qwen-max</string>
     <string name="err_mineru_token_missing">Please enter MinerU Token in settings first.</string>
-    <string name="msg_pdf_translating">Translating document…… %1$d / %2$d paragraphs…</string>
+    <string name="msg_mineru_uploading">Uploading to MinerU %1$s / %2$s</string>
+    <string name="msg_mineru_downloading">Downloading recognition result %1$s / %2$s</string>
+    <string name="msg_pdf_translating">Translating document %1$d / %2$d paragraphs</string>
     <string name="label_markdown_format">MD format</string>
     <string name="pdf_format_bilingual">Bilingual (interleaved)</string>
     <string name="pdf_format_original_first">Original first, then translation</string>
@@ -140,14 +156,14 @@
     <string name="msg_translate_deepl_running">DeepL translation…</string>
     <string name="msg_translate_openai_running">Custom LLM translation…</string>
     <string name="err_apple_binary">On-device translation component not found.</string>
-    <string name="msg_translate_apple_progress">Translating %1$d/%2$d…</string>
+    <string name="msg_translate_apple_progress">Translating %1$d/%2$d</string>
     <string name="dialog_apple_help_title">About Apple Translate</string>
     <string name="dialog_apple_help_body">Apple Translate uses your Mac\'s native translation API, which is offline, free, and fast.\n\nNote: Translation quality may be lower than online models for technical terms or complex sentences.\n\nEnsure your target language is downloaded to your system:\n\n1. Go to \"System Settings\" → \"General\" → \"Translation &amp; Live Text\"\n2. Click the download button next to the available languages</string>
     <string name="dialog_apple_help_link">Apple Support: download translation languages</string>
     <string name="dialog_apple_help_url">https://support.apple.com/guide/mac-help/mchl09c6b945/mac</string>
-    <string name="msg_translate_google_progress">Translating %1$d/%2$d…</string>
-    <string name="msg_translate_deepl_progress">Translating %1$d/%2$d…</string>
-    <string name="msg_translate_openai_progress">Translating %1$d/%2$d…</string>
+    <string name="msg_translate_google_progress">Translating %1$d/%2$d</string>
+    <string name="msg_translate_deepl_progress">Translating %1$d/%2$d</string>
+    <string name="msg_translate_openai_progress">Translating %1$d/%2$d</string>
     <string name="phase_done_short">Done</string>
     <string name="duration_zero">0s</string>
     <string name="duration_format_sec_only">%1$ds</string>
@@ -169,7 +185,7 @@
     <string name="hint_apple_translate_pair">Note: On-device translation uses %1$s → %2$s (source comes from Whisper\'s audio detection; language=%3$s). The corner "translation service test" uses fixed English/Chinese sample text only, so it may succeed even when this pair is missing.</string>
     <string name="err_unsupported_file_type">Unsupported file type. Only video, audio, images and common documents are supported.</string>
     <string name="msg_text_translating">Translating text…</string>
-    <string name="msg_text_translate_progress">Translating %1$d/%2$d paragraphs…</string>
+    <string name="msg_text_translate_progress">Translating %1$d/%2$d paragraphs</string>
     <string name="drop_zone_hint_formats">MP4, MKV, MP3, AAC, PDF, DOC, MD, JPG...</string>
     <string name="action_initiate_architect">INITIATE ARCHITECT</string>
 </resources>

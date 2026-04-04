@@ -242,7 +242,6 @@ private fun TaskDetailBlock(task: TaskRecord, running: Boolean) {
     val topPad = if (running) 0.dp else 8.dp
     val showCompletedAt =
         task.phase == PipelinePhase.Done &&
-            task.translationStats == null &&
             task.completedAtMs > 0L &&
             task.error.isNullOrBlank()
 
