@@ -32,6 +32,7 @@ replay_pid*.log
 
 # --- Local config & secrets ---
 local.properties
+composeApp/src/jvmMain/resources/key.properties
 .env
 .env.*
 !.env.example

@@ -18,6 +18,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
+import java.io.InputStreamReader
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -25,6 +26,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Duration
+import java.util.Properties
 
 /**
  * 飞书多维表格（Bitable）预置 Key 分发：串行获取 token → 解析表 ID → 查询待领取记录 → 标记已领取。
@@ -32,8 +34,28 @@ import java.time.Duration
  */
 object FeishuKeyManager {
 
-    private const val APP_ID = "cli_a945dad52f7a1bd7"
-    private const val APP_SECRET = "1wvDUm5vHCQbARMV5IN6Hh10Ep2SKzKQ"
+    private val props by lazy { loadKeyProperties() }
+
+    private val appId: String by lazy { req("appId") }
+    private val appSecret: String by lazy { req("appSecret") }
+
+    private fun loadKeyProperties(): Properties {
+        val stream =
+            FeishuKeyManager::class.java.classLoader?.getResourceAsStream("key.properties")
+                ?: error(
+                    "未找到 key.properties。请将 composeApp/src/jvmMain/resources/key.properties.example " +
+                        "复制为 key.properties 并填写 appId、appSecret。",
+                )
+        return stream.use {
+            Properties().apply { load(InputStreamReader(it, StandardCharsets.UTF_8)) }
+        }
+    }
+
+    private fun req(key: String): String {
+        val v = props.getProperty(key)?.trim()
+        if (v.isNullOrEmpty()) error("key.properties 缺少或为空: $key")
+        return v
+    }
 
     /** 多维表格 app_token（一般为「分享」链接中 `base/` 后的一段；若 wiki 链接不可用请替换为 base 链接中的 token） */
     private const val BITABLE_APP_TOKEN = "VQ5RwAqgnimIADk25tPcMzVHnvc"
@@ -139,7 +161,7 @@ object FeishuKeyManager {
             return cached
         }
         val body = json.encodeToString(
-            InternalTokenRequest(app_id = APP_ID, app_secret = APP_SECRET),
+            InternalTokenRequest(app_id = appId, app_secret = appSecret),
         )
         val request = HttpRequest.newBuilder()
             .uri(URI.create("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"))
