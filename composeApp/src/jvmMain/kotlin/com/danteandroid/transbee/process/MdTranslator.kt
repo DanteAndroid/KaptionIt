@@ -6,15 +6,20 @@ import com.danteandroid.transbee.settings.ToolingSettings
 import com.danteandroid.transbee.translate.AppleTranslateBinary
 import com.danteandroid.transbee.translate.AppleTranslator
 import com.danteandroid.transbee.translate.DeepLTranslator
+import com.danteandroid.transbee.translate.GeminiTranslator
 import com.danteandroid.transbee.translate.GoogleTranslator
+import com.danteandroid.transbee.translate.GlossaryLoader
 import com.danteandroid.transbee.translate.OpenAiTranslator
 import com.danteandroid.transbee.translate.TargetLanguageMapper
 import com.danteandroid.transbee.translate.TranslationEngine
+import com.danteandroid.transbee.utils.JvmResourceStrings
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_apple_translate_missing
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -67,6 +72,9 @@ object MdTranslator {
         cfg: ToolingSettings,
         onProgress: (done: Int, total: Int) -> Unit,
     ): List<String> {
+        val forcedTerms = GlossaryLoader.normalizeMappings(
+            cfg.forcedTranslationTerms.map { GlossaryLoader.TermMapping(source = it.source, target = it.target) }
+        )
         val translatable = mutableListOf<IndexedValue<String>>()
         val result = MutableList(paragraphs.size) { paragraphs[it] }
 
@@ -88,14 +96,16 @@ object MdTranslator {
                 chunkSize = 6
                 concurrency = 1
                 val bin = AppleTranslateBinary.resolvePath(cfg.appleTranslateBinary)
-                    ?: error("找不到本机翻译组件")
+                    ?: error(JvmResourceStrings.text(Res.string.err_apple_translate_missing))
                 val appleSource =
                     TargetLanguageMapper.toAppleLocale(cfg.targetLanguage, forTarget = false)
                 val appleTarget =
                     TargetLanguageMapper.toAppleLocale(cfg.targetLanguage, forTarget = true)
                 val translator = AppleTranslator(binaryPath = bin)
                 translateChunk =
-                    { texts -> translator.translateBatch(texts, appleSource, appleTarget) }
+                    { texts ->
+                        translator.translateBatch(texts, appleSource, appleTarget)
+                    }
             }
 
             TranslationEngine.GOOGLE -> {
@@ -103,7 +113,9 @@ object MdTranslator {
                 concurrency = 8
                 val target = TargetLanguageMapper.toGoogleTargetCode(cfg.targetLanguage)
                 val translator = GoogleTranslator(apiKey = cfg.googleApiKey)
-                translateChunk = { texts -> translator.translateBatch(texts, target) }
+                translateChunk = { texts ->
+                    translator.translateBatch(texts, target)
+                }
             }
 
             TranslationEngine.DEEPL -> {
@@ -112,7 +124,24 @@ object MdTranslator {
                 val target = TargetLanguageMapper.toDeepLTargetCode(cfg.targetLanguage)
                 val translator =
                     DeepLTranslator(authKey = cfg.deeplApiKey, useFreeApiHost = cfg.deeplUseFreeApi)
-                translateChunk = { texts -> translator.translateBatch(texts, target) }
+                translateChunk = { texts ->
+                    translator.translateBatch(texts, target)
+                }
+            }
+
+            TranslationEngine.GEMINI -> {
+                chunkSize = 10
+                concurrency = 2
+                val translator = GeminiTranslator(
+                    apiKey = cfg.geminiApiKey,
+                    model = cfg.geminiModel,
+                    glossaryMappings = forcedTerms,
+                    userPrompt = cfg.translationPrompt,
+                    enforceSubtitleBatchRules = false,
+                )
+                translateChunk = { texts ->
+                    translator.translateBatch(texts, cfg.targetLanguage).texts
+                }
             }
 
             TranslationEngine.OPENAI -> {
@@ -123,8 +152,12 @@ object MdTranslator {
                     model = cfg.openAiModel,
                     baseUrl = cfg.openAiBaseUrl,
                     enforceSubtitleBatchRules = false,
+                    glossaryMappings = forcedTerms,
+                    userPrompt = cfg.translationPrompt,
                 )
-                translateChunk = { texts -> translator.translateBatch(texts, cfg.targetLanguage) }
+                translateChunk = { texts ->
+                    translator.translateBatch(texts, cfg.targetLanguage).texts
+                }
             }
         }
 
@@ -132,13 +165,28 @@ object MdTranslator {
         val semaphore = Semaphore(concurrency)
 
         coroutineScope {
-            chunks.map { chunk ->
+            chunks.mapIndexed { chunkIdx, chunk ->
                 async {
                     semaphore.withPermit {
-                        val texts = chunk.map { it.value }
+                        // 附加前后各 2 个段落作为上下文（不翻译），帮助 LLM 理解边界段落
+                        val contextBefore = buildList {
+                            if (chunkIdx > 0) {
+                                val prev = chunks[chunkIdx - 1]
+                                addAll(prev.takeLast(2).map { it.value })
+                            }
+                        }
+                        val contextAfter = buildList {
+                            if (chunkIdx < chunks.size - 1) {
+                                val next = chunks[chunkIdx + 1]
+                                addAll(next.take(2).map { it.value })
+                            }
+                        }
+                        val texts = contextBefore + chunk.map { it.value } + contextAfter
                         val translated = translateChunk(texts)
+                        // 只取中间段的翻译结果（跳过上下文）
+                        val offset = contextBefore.size
                         chunk.forEachIndexed { j, iv ->
-                            result[iv.index] = translated.getOrElse(j) { iv.value }
+                            result[iv.index] = translated.getOrElse(j + offset) { iv.value }
                         }
                         val done = doneCount.addAndGet(chunk.size)
                         onProgress(done, total)
@@ -177,6 +225,10 @@ object MdTranslator {
             PdfTranslateFormat.TRANSLATION_FIRST -> {
                 append(translations.joinToString("\n\n"))
                 append("\n\n---\n\n")
+                append(originals.joinToString("\n\n"))
+            }
+
+            PdfTranslateFormat.SOURCE_ONLY -> {
                 append(originals.joinToString("\n\n"))
             }
         }

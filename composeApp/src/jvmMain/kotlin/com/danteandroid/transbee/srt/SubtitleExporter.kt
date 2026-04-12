@@ -16,7 +16,7 @@ object SubtitleExporter {
         subtitleOutputs: Set<String>,
         targetSuffix: String = "_zh",
     ): List<ExportFile> {
-        val sourceTexts = segments.map { it.text }
+        val sourceTexts = segments.map { it.textForSourceSubtitle() }
         val normalized = subtitleOutputs.map { it.lowercase() }.toSet()
         if (normalized.isEmpty()) {
             return listOf(ExportFile(body = buildTargetOnly(segments, sourceTexts, format)))
@@ -68,7 +68,7 @@ object SubtitleExporter {
                 .append(formatVttTimestamp(seg.endSec)).append('\n')
             if (bilingual) {
                 sb.append(translations[index].trim()).append('\n')
-                sb.append(seg.text).append('\n')
+                sb.append(seg.textForSourceSubtitle()).append('\n')
             } else {
                 sb.append(translations[index].trim()).append('\n')
             }
@@ -85,7 +85,7 @@ object SubtitleExporter {
         segments.forEachIndexed { index, seg ->
             if (bilingual) {
                 append(translations[index].trim()).append('\n')
-                append(seg.text).append('\n')
+                append(seg.textForSourceSubtitle()).append('\n')
             } else {
                 append(translations[index].trim()).append('\n')
             }

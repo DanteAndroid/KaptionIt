@@ -25,6 +25,9 @@ private val knownJsonKeys = setOf(
     "deeplApiKey",
     "deepl_api_key",
     "deeplKey",
+    "geminiApiKey",
+    "gemini_api_key",
+    "geminiModel",
     "deeplUseFreeApi",
     "targetLanguage",
     "appleTranslateBinary",
@@ -97,6 +100,8 @@ fun ToolingSettings.mergePurchasedConfiguration(raw: String): ToolingSettings {
     parsed.stringOrNull("openAiModel")?.let { next = next.copy(openAiModel = it) }
     parsed.stringFromKeys("googleApiKey", "google_api_key")?.let { next = next.copy(googleApiKey = it) }
     parsed.stringFromKeys("deeplApiKey", "deepl_api_key", "deeplKey")?.let { next = next.copy(deeplApiKey = it) }
+    parsed.stringFromKeys("geminiApiKey", "gemini_api_key")?.let { next = next.copy(geminiApiKey = it) }
+    parsed.stringOrNull("geminiModel")?.let { next = next.copy(geminiModel = it) }
     parsed["deeplUseFreeApi"]?.jsonPrimitive?.booleanLenient()?.let {
         next = next.copy(deeplUseFreeApi = it)
     }
@@ -114,6 +119,8 @@ fun ToolingSettings.mergePurchasedConfiguration(raw: String): ToolingSettings {
                 next.copy(translationEngine = TranslationEngine.GOOGLE)
             parsed.keys.any { it in setOf("deeplApiKey", "deepl_api_key", "deeplKey") } ->
                 next.copy(translationEngine = TranslationEngine.DEEPL)
+            parsed.keys.any { it in setOf("geminiApiKey", "gemini_api_key") } ->
+                next.copy(translationEngine = TranslationEngine.GEMINI)
             else -> next
         }
     }

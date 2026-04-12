@@ -20,6 +20,7 @@ import com.danteandroid.transbee.whisper.WhisperModelOption
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +33,7 @@ import transbee.composeapp.generated.resources.err_apple_translate_macos_only
 import transbee.composeapp.generated.resources.err_apple_translate_missing
 import transbee.composeapp.generated.resources.err_deepl_key
 import transbee.composeapp.generated.resources.err_file_read
+import transbee.composeapp.generated.resources.err_gemini_key
 import transbee.composeapp.generated.resources.err_google_key
 import transbee.composeapp.generated.resources.err_mineru_token_missing
 import transbee.composeapp.generated.resources.err_openai_key
@@ -77,6 +79,7 @@ class PipelineViewModel : ViewModel() {
     private var pipelineJob: Job? = null
     private var currentRunningTaskId: String? = null
     private var modelDownloadJob: Job? = null
+    private var pendingTasksPersistJob: Job? = null
 
     private var lastAutoOpenTaskId: String? = null
 
@@ -92,6 +95,7 @@ class PipelineViewModel : ViewModel() {
 
     fun downloadWhisperModel(option: WhisperModelOption, forceRedownload: Boolean) {
         if (_modelDownload.value.active) return
+        var lastModelDownloadUiMs = 0L
         _modelDownload.value = ModelDownloadUiState(
             active = true,
             fileName = option.fileName,
@@ -107,20 +111,25 @@ class PipelineViewModel : ViewModel() {
                     option = option,
                     force = forceRedownload,
                     onProgress = { received, total ->
-                        val p = if (total != null && total > 0) {
-                            (received.toDouble() / total.toDouble()).toFloat().coerceIn(0f, 1f)
-                        } else {
-                            0f
+                        val complete = total != null && total > 0L && received >= total
+                        val now = System.currentTimeMillis()
+                        if (complete || now - lastModelDownloadUiMs >= 120L) {
+                            lastModelDownloadUiMs = now
+                            val p = if (total != null && total > 0) {
+                                (received.toDouble() / total.toDouble()).toFloat().coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            }
+                            _modelDownload.value = ModelDownloadUiState(
+                                active = true,
+                                fileName = option.fileName,
+                                progress = p,
+                                receivedBytes = received,
+                                totalBytes = total,
+                                message = received.toReadableByteSize() +
+                                        if (total != null && total > 0) " / ${total.toReadableByteSize()}" else "",
+                            )
                         }
-                        _modelDownload.value = ModelDownloadUiState(
-                            active = true,
-                            fileName = option.fileName,
-                            progress = p,
-                            receivedBytes = received,
-                            totalBytes = total,
-                            message = received.toReadableByteSize() +
-                                    if (total != null && total > 0) " / ${total.toReadableByteSize()}" else "",
-                        )
                     },
                 )
                 updateTooling { it.copy(whisperModel = result.file.absolutePath) }
@@ -173,6 +182,9 @@ class PipelineViewModel : ViewModel() {
             TranslationEngine.DEEPL ->
                 if (cfg.deeplApiKey.isBlank()) JvmResourceStrings.text(Res.string.err_deepl_key) else null
 
+            TranslationEngine.GEMINI ->
+                if (cfg.geminiApiKey.isBlank()) JvmResourceStrings.text(Res.string.err_gemini_key) else null
+
             TranslationEngine.OPENAI ->
                 if (cfg.openAiKey.isBlank()) JvmResourceStrings.text(Res.string.err_openai_key) else null
         }
@@ -187,7 +199,14 @@ class PipelineViewModel : ViewModel() {
         files.forEach { file ->
             val result = enqueuePipeline(file)
             if (isTaskId(result)) {
-                if (isSingleFileBatch) lastAutoOpenTaskId = result
+                if (isSingleFileBatch) {
+                    val ext = file.extension.lowercase()
+                    lastAutoOpenTaskId = if (ext in mineruDocExtensions || ext in textExtensions) {
+                        result
+                    } else {
+                        null
+                    }
+                }
             } else {
                 errors.add(result)
             }
@@ -242,7 +261,7 @@ class PipelineViewModel : ViewModel() {
         }
         fileQueue.addLast(id to videoFile)
         startNextIfIdle()
-        TaskRecordStore.saveTasks(_tasks.value)
+        persistTasksImmediate()
         return id
     }
 
@@ -297,7 +316,7 @@ class PipelineViewModel : ViewModel() {
             pipelineJob?.cancel()
         }
         _tasks.update { list -> list.filterNot { it.id == id } }
-        TaskRecordStore.saveTasks(_tasks.value)
+        persistTasksImmediate()
     }
 
     fun startAllTasks(): String? {
@@ -353,14 +372,14 @@ class PipelineViewModel : ViewModel() {
             }
         }
         pipelineJob?.cancel()
-        TaskRecordStore.saveTasks(_tasks.value)
+        persistTasksImmediate()
     }
 
     fun deleteAllTasks() {
         fileQueue.clear()
         pipelineJob?.cancel()
         _tasks.update { emptyList() }
-        TaskRecordStore.saveTasks(emptyList())
+        persistTasksImmediate()
     }
 
     private fun startNextIfIdle() {
@@ -397,21 +416,50 @@ class PipelineViewModel : ViewModel() {
         }
     }
 
-    private fun updateTask(id: String, transform: (TaskRecord) -> TaskRecord) {
-        _tasks.update { list -> list.map { if (it.id == id) transform(it) else it } }
+    private fun persistTasksImmediate() {
+        pendingTasksPersistJob?.cancel()
+        pendingTasksPersistJob = null
         TaskRecordStore.saveTasks(_tasks.value)
+    }
+
+    private fun schedulePersistTasksDebounced() {
+        pendingTasksPersistJob?.cancel()
+        pendingTasksPersistJob = viewModelScope.launch {
+            delay(320L)
+            TaskRecordStore.saveTasks(_tasks.value)
+        }
+    }
+
+    private fun updateTask(id: String, transform: (TaskRecord) -> TaskRecord) {
+        _tasks.update { list ->
+            val idx = list.indexOfFirst { it.id == id }
+            if (idx < 0) return@update list
+            val old = list[idx]
+            val new = transform(old)
+            if (new == old) return@update list
+            list.toMutableList().also { it[idx] = new }
+        }
+        schedulePersistTasksDebounced()
     }
 
     /** 任务已为 Cancelled 时不再被管道进度覆盖（例如全部停止后子进程尚未退出） */
     private fun updateTaskFromPipeline(id: String, transform: (TaskRecord) -> TaskRecord) {
         _tasks.update { list ->
-            list.map { task ->
-                if (task.id != id) return@map task
-                if (task.phase == PipelinePhase.Cancelled) return@map task
-                transform(task)
-            }
+            val idx = list.indexOfFirst { it.id == id }
+            if (idx < 0) return@update list
+            val old = list[idx]
+            if (old.phase == PipelinePhase.Cancelled) return@update list
+            val new = transform(old)
+            if (new == old) return@update list
+            list.toMutableList().also { it[idx] = new }
         }
+        schedulePersistTasksDebounced()
+    }
+
+    override fun onCleared() {
+        pendingTasksPersistJob?.cancel()
         TaskRecordStore.saveTasks(_tasks.value)
+        super.onCleared()
     }
 
     private suspend fun runPipelineInternal(id: String, file: File) {

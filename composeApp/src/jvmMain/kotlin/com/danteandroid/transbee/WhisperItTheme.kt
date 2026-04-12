@@ -21,11 +21,61 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.skia.FontMgr
 import org.jetbrains.skia.FontStyle
+import java.util.Locale
 
 private val LogoFont =
     FontMgr.default.matchFamilyStyle("Didot", FontStyle.NORMAL)?.let {
         FontFamily(Typeface(it))
     } ?: FontFamily.Default
+
+private fun resolveSystemFontFamily(vararg candidates: String): FontFamily {
+    val mgr = FontMgr.default
+    for (name in candidates) {
+        mgr.matchFamilyStyle(name, FontStyle.NORMAL)?.let { return FontFamily(Typeface(it)) }
+    }
+    return FontFamily.Default
+}
+
+private val UiFontEn: FontFamily by lazy {
+    val custom = System.getenv("TRANSBEE_FONT_EN")?.trim().orEmpty()
+    if (custom.isNotEmpty()) {
+        resolveSystemFontFamily(custom)
+    } else {
+        resolveSystemFontFamily(
+            // Retro / editorial serif vibe
+            "EB Garamond",
+            "Cormorant Garamond",
+            "Garamond",
+            "Baskerville",
+            "Didot",
+            "Georgia",
+            // Fallbacks
+            "Times New Roman",
+        )
+    }
+}
+
+private val UiFontZh: FontFamily by lazy {
+    val custom = System.getenv("TRANSBEE_FONT_ZH")?.trim().orEmpty()
+    if (custom.isNotEmpty()) {
+        resolveSystemFontFamily(custom)
+    } else {
+        resolveSystemFontFamily(
+            // Retro Chinese: Song/FangSong/Kai family preference
+            "Songti SC",
+            "STSong",
+            "SimSun",
+            "FangSong",
+            "STFangsong",
+            "KaiTi",
+            "STKaiti",
+            // Readable modern fallbacks if above unavailable
+            "Noto Serif SC",
+            "Noto Sans SC",
+            "PingFang SC",
+        )
+    }
+}
 
 private val LightColors = lightColorScheme(
     primary = Color(0xFF715C00),
@@ -85,62 +135,72 @@ private val DarkColors = darkColorScheme(
     onError = Color(0xFF000000),
 )
 
-private val WhisperTypography = Typography(
+private fun whisperTypography(fontFamily: FontFamily) = Typography(
     headlineSmall = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 24.sp,
         lineHeight = 32.sp,
         fontWeight = FontWeight.Bold,
         letterSpacing = 0.5.sp,
     ),
     titleLarge = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 20.sp,
         lineHeight = 28.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.sp,
     ),
     titleMedium = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.2.sp,
     ),
     titleSmall = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.1.sp,
     ),
     bodyLarge = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         fontWeight = FontWeight.Normal,
         letterSpacing = 0.2.sp,
     ),
     bodyMedium = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.Normal,
         letterSpacing = 0.2.sp,
     ),
     bodySmall = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         fontWeight = FontWeight.Normal,
         letterSpacing = 0.2.sp,
     ),
     labelLarge = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.5.sp,
     ),
     labelMedium = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         fontWeight = FontWeight.Bold,
         letterSpacing = 1.sp,
     ),
     labelSmall = TextStyle(
+        fontFamily = fontFamily,
         fontSize = 11.sp,
         lineHeight = 16.sp,
         fontWeight = FontWeight.Medium,
@@ -180,9 +240,10 @@ fun TransbeeTheme(
     darkTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val fontFamily = if (Locale.getDefault().language.lowercase() == "zh") UiFontZh else UiFontEn
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = WhisperTypography,
+        typography = whisperTypography(fontFamily),
         shapes = WhisperShapes,
     ) {
         CompositionLocalProvider(

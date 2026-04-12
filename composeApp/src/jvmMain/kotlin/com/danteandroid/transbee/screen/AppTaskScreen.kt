@@ -8,6 +8,7 @@ package com.danteandroid.transbee.screen
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,6 +74,7 @@ import com.danteandroid.transbee.process.isActivelyProcessing
 import com.danteandroid.transbee.ui.ModelDownloadUiState
 import com.danteandroid.transbee.ui.TaskRecord
 import com.danteandroid.transbee.utils.fileFromDragDropPath
+import com.danteandroid.transbee.utils.JvmResourceStrings
 import com.danteandroid.transbee.utils.pickFilesWithChooser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,6 +97,9 @@ import transbee.composeapp.generated.resources.state_downloading
 import transbee.composeapp.generated.resources.tasks_completed
 import transbee.composeapp.generated.resources.tasks_processing
 import transbee.composeapp.generated.resources.drop_zone_hint_formats
+import transbee.composeapp.generated.resources.preview_queued
+import transbee.composeapp.generated.resources.preview_transcribing
+import transbee.composeapp.generated.resources.symbol_settings_gear
 import java.io.File
 
 private val taskSortComparator =
@@ -102,6 +108,17 @@ private val taskSortComparator =
 private val completedTaskTimeDescending: Comparator<TaskRecord> = compareByDescending { task ->
     val t = task.completedAtMs
     if (t > 0L) t else task.createdAtMs
+}
+
+private fun partitionTasksForUi(tasks: List<TaskRecord>): Pair<List<TaskRecord>, List<TaskRecord>> {
+    val processing = ArrayList<TaskRecord>(tasks.size)
+    val completed = ArrayList<TaskRecord>()
+    for (t in tasks) {
+        if (t.phase == PipelinePhase.Done) completed.add(t) else processing.add(t)
+    }
+    processing.sortWith(taskSortComparator)
+    completed.sortWith(completedTaskTimeDescending)
+    return processing to completed
 }
 
 /** 与翻译服务字幕区一致：描边 + 淡黄底（随主题 primary） */
@@ -261,12 +278,22 @@ fun AppTaskScreen(
                     )
                 }
 
-                val processingTasks = tasks.filter { it.phase != PipelinePhase.Done }
-                    .sortedWith(taskSortComparator)
-                val completedTasks = tasks.filter { it.phase == PipelinePhase.Done }
-                    .sortedWith(completedTaskTimeDescending)
+                val (processingTasks, completedTasks) = remember(tasks) {
+                    partitionTasksForUi(tasks)
+                }
 
                 val listState = rememberLazyListState()
+
+                // 自动滚动：仅当「处理中」集合在已有快照基础上出现新 id 时滚动（冷启动首次加载不动画，避免底部/列表抽动）
+                val processingTaskIds = remember(processingTasks) { processingTasks.map { it.id }.toSet() }
+                var lastProcessingTaskIds by remember { mutableStateOf(emptySet<String>()) }
+                LaunchedEffect(processingTaskIds) {
+                    val newIds = processingTaskIds - lastProcessingTaskIds
+                    if (newIds.isNotEmpty() && lastProcessingTaskIds.isNotEmpty()) {
+                        listState.animateScrollToItem(0)
+                    }
+                    lastProcessingTaskIds = processingTaskIds
+                }
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     LazyColumn(
                         state = listState,
@@ -357,6 +384,7 @@ private fun TaskSectionHeader(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = spacing.large)
             .padding(bottom = spacing.small),
     )
 }
@@ -376,7 +404,7 @@ private fun TaskListHeader(
     Row(
         modifier
             .fillMaxWidth()
-            .padding(bottom = spacing.small),
+            .padding(end = spacing.large, bottom = spacing.small),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -387,12 +415,13 @@ private fun TaskListHeader(
                 letterSpacing = 0.8.sp,
             ),
             color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = spacing.large),
         )
         Spacer(Modifier.weight(1f))
         SubtitleAccentOutlinedButton(
             onClick = onChooseFiles,
             modifier = Modifier.height(38.dp),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+            contentPadding = PaddingValues(start = 10.dp, end = 14.dp, top = 0.dp, bottom = 0.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -505,7 +534,9 @@ fun StatusBarRow(
 ) {
     val spacing = AppTheme.spacing
     Row(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
             .padding(start = spacing.large, top = 12.dp, end = spacing.large, bottom = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -552,7 +583,7 @@ fun StatusBarRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.xSmall),
                 ) {
-                    Text("⚙", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(Res.string.symbol_settings_gear), style = MaterialTheme.typography.labelLarge)
                     Text(
                         stringResource(Res.string.action_settings),
                         style = MaterialTheme.typography.labelLarge,
@@ -574,7 +605,7 @@ private fun AppTaskScreenPreview() {
                     fileName = "video_a.mp4",
                     phase = PipelinePhase.Transcribing,
                     progress = 0.6f,
-                    message = "Transcribing…"
+                    message = JvmResourceStrings.text(Res.string.preview_transcribing)
                 ),
                 TaskRecord(
                     id = "2",
@@ -587,7 +618,7 @@ private fun AppTaskScreenPreview() {
                     id = "3",
                     fileName = "video_c.mp4",
                     phase = PipelinePhase.Queued,
-                    message = "Queued"
+                    message = JvmResourceStrings.text(Res.string.preview_queued)
                 ),
             ),
             onFilesSelected = {},

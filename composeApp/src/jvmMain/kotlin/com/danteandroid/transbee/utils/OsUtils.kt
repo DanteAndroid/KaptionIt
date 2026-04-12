@@ -4,7 +4,8 @@ object OsUtils {
     private val osName: String = System.getProperty("os.name")?.lowercase().orEmpty()
 
     fun isMacOs(): Boolean = osName.contains("mac") || osName.contains("darwin")
-    
+
+    /** Windows 10/11 等均为 "windows …"，用 win 判断即可 */
     fun isWindows(): Boolean = osName.contains("win")
 
     fun revealInFileBrowser(file: java.io.File) {

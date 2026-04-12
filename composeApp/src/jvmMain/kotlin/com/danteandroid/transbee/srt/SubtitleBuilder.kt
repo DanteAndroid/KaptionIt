@@ -2,9 +2,12 @@ package com.danteandroid.transbee.srt
 
 import com.danteandroid.transbee.settings.ToolingSettings
 import com.danteandroid.transbee.translate.TargetLanguageMapper
+import com.danteandroid.transbee.translate.TranslationEngine
 import com.danteandroid.transbee.translate.TranslationMetrics
 import com.danteandroid.transbee.translate.TranslationService
 import com.danteandroid.transbee.ui.TranslationTaskStats
+import com.danteandroid.transbee.whisper.TranscriptSegment
+import com.danteandroid.transbee.whisper.TranscriptionTermCorrector
 import com.danteandroid.transbee.utils.JvmResourceStrings
 import com.danteandroid.transbee.whisper.WhisperParseResult
 import transbee.composeapp.generated.resources.Res
@@ -34,10 +37,12 @@ object SubtitleBuilder {
         val lineCount = segments.size
         val translated: List<String>
         val stats: TranslationTaskStats?
+        val segmentsForExport: List<TranscriptSegment>
 
         if (!needsTranslation) {
             onProgressUpdate(1f, JvmResourceStrings.text(Res.string.msg_skip_translate))
             translated = segments.map { it.text }
+            segmentsForExport = segments
             stats = TranslationTaskStats(
                 recognitionDurationMs = recognitionDurationMs,
                 translationDurationMs = 0L,
@@ -49,13 +54,30 @@ object SubtitleBuilder {
         } else {
             val metrics = TranslationMetrics()
             val t0 = System.currentTimeMillis()
-            translated = TranslationService.translateSegments(
+            val outcome = TranslationService.translateSegments(
                 cfg = cfg,
                 whisperDoc = whisperDoc,
                 segments = segments,
                 metrics = metrics,
                 onProgressUpdate = onProgressUpdate
             )
+            translated = outcome.translations
+            val relaxedFlags = outcome.sourceNeedsRelaxedTermCorrection
+            val exportDoc =
+                if (
+                    (cfg.translationEngine == TranslationEngine.OPENAI || cfg.translationEngine == TranslationEngine.GEMINI) &&
+                    relaxedFlags != null &&
+                    relaxedFlags.any { it }
+                ) {
+                    TranscriptionTermCorrector.polishRelaxedByNeedCorrect(
+                        whisperDoc,
+                        cfg.forcedTranslationTerms.map { it.source },
+                        relaxedFlags,
+                    )
+                } else {
+                    whisperDoc
+                }
+            segmentsForExport = exportDoc.segments
             val translationDurationMs = System.currentTimeMillis() - t0
             stats = TranslationTaskStats(
                 recognitionDurationMs = recognitionDurationMs,
@@ -68,7 +90,7 @@ object SubtitleBuilder {
         }
 
         val files = SubtitleExporter.exportFiles(
-            segments = segments,
+            segments = segmentsForExport,
             translations = translated,
             format = cfg.exportFormat,
             subtitleOutputs = effectiveOutputs,

@@ -18,7 +18,7 @@ object SrtFormatter {
             sb.append(formatTimestamp(seg.startSec)).append(" --> ")
                 .append(formatTimestamp(seg.endSec)).append('\n')
             sb.append(translations[index].trim()).append('\n')
-            sb.append(seg.text).append('\n')
+            sb.append(seg.textForSourceSubtitle()).append('\n')
             sb.append('\n')
         }
         return sb.toString()

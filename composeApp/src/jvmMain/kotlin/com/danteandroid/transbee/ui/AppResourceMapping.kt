@@ -9,6 +9,7 @@ import org.jetbrains.compose.resources.stringResource
 import transbee.composeapp.generated.resources.Res
 import transbee.composeapp.generated.resources.engine_apple
 import transbee.composeapp.generated.resources.engine_deepl
+import transbee.composeapp.generated.resources.engine_gemini
 import transbee.composeapp.generated.resources.engine_google
 import transbee.composeapp.generated.resources.engine_openai
 import transbee.composeapp.generated.resources.format_srt
@@ -25,6 +26,7 @@ import transbee.composeapp.generated.resources.lang_zh_cn
 import transbee.composeapp.generated.resources.lang_zh_tw
 import transbee.composeapp.generated.resources.pdf_format_bilingual
 import transbee.composeapp.generated.resources.pdf_format_original_first
+import transbee.composeapp.generated.resources.pdf_format_source
 import transbee.composeapp.generated.resources.pdf_format_translation_first
 import transbee.composeapp.generated.resources.phase_cancelled
 import transbee.composeapp.generated.resources.phase_done
@@ -83,6 +85,7 @@ val TranslationEngine.labelRes: StringResource
         TranslationEngine.APPLE -> Res.string.engine_apple
         TranslationEngine.GOOGLE -> Res.string.engine_google
         TranslationEngine.DEEPL -> Res.string.engine_deepl
+        TranslationEngine.GEMINI -> Res.string.engine_gemini
         TranslationEngine.OPENAI -> Res.string.engine_openai
     }
 
@@ -91,6 +94,7 @@ val PdfTranslateFormat.labelRes: StringResource
         PdfTranslateFormat.BILINGUAL -> Res.string.pdf_format_bilingual
         PdfTranslateFormat.ORIGINAL_FIRST -> Res.string.pdf_format_original_first
         PdfTranslateFormat.TRANSLATION_FIRST -> Res.string.pdf_format_translation_first
+        PdfTranslateFormat.SOURCE_ONLY -> Res.string.pdf_format_source
     }
 
 val PipelinePhase.label: String

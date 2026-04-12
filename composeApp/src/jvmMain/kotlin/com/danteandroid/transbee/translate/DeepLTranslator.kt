@@ -1,10 +1,14 @@
 package com.danteandroid.transbee.translate
 
+import com.danteandroid.transbee.utils.JvmResourceStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_deepl_http
+import transbee.composeapp.generated.resources.err_translate_result_invalid
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -105,12 +109,12 @@ class DeepLTranslator(
         if (response.statusCode() !in 200..299) {
             val code = response.statusCode()
             TranslationHttp.ensureNotRateLimited(code)
-            error("DeepL 服务返回错误（错误码 $code），请检查密钥或网络。")
+            error(JvmResourceStrings.text(Res.string.err_deepl_http, code))
         }
         val parsed = json.decodeFromString(DeepLResponse.serializer(), response.body())
         val list = parsed.translations
         if (list.size != slice.size) {
-            error("翻译结果异常，请重试。")
+            error(JvmResourceStrings.text(Res.string.err_translate_result_invalid))
         }
         return list.map { it.text }
     }

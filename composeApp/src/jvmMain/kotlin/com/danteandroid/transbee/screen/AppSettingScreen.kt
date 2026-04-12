@@ -32,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -95,6 +96,14 @@ import transbee.composeapp.generated.resources.markdown_format_help_content
 import transbee.composeapp.generated.resources.model_group_english_only
 import transbee.composeapp.generated.resources.model_group_general
 import transbee.composeapp.generated.resources.section_vad
+
+private val translationEngineMenuOrder: List<TranslationEngine> = listOf(
+    TranslationEngine.APPLE,
+    TranslationEngine.GOOGLE,
+    TranslationEngine.GEMINI,
+    TranslationEngine.DEEPL,
+    TranslationEngine.OPENAI,
+)
 
 private val panelCardColors
     @Composable
@@ -415,7 +424,7 @@ fun TranslationSettingCard(
                         onDismissRequest = { engineExpanded = false },
                         modifier = Modifier.width(menuWidth)
                 ) {
-                    TranslationEngine.entries
+                    translationEngineMenuOrder
                             .filter {
                                 it != TranslationEngine.APPLE ||
                                         com.danteandroid.transbee.utils.OsUtils.isMacOs()

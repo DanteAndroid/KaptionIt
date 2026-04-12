@@ -259,7 +259,9 @@ private fun TaskDetailBlock(task: TaskRecord, running: Boolean) {
                     minLines = 1,
                     maxLines = 5,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 4.dp, end = 8.dp + 4.dp),
                 )
                 Text(
                     text = formatTaskCompletedAt(task.completedAtMs),
@@ -276,7 +278,9 @@ private fun TaskDetailBlock(task: TaskRecord, running: Boolean) {
                 minLines = 1,
                 maxLines = if (running) 2 else 5,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().padding(top = topPad),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, end = 4.dp, top = topPad),
             )
         }
     }

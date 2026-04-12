@@ -76,7 +76,6 @@ kotlin {
             implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
-            implementation(libs.androidx.lifecycle.runtimeCompose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -87,14 +86,44 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutinesSwing)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.slf4j.api)
+                implementation(libs.slf4j.simple)
                 implementation("net.java.dev.jna:jna-platform:5.14.0")
+                implementation("commons-codec:commons-codec:1.17.1")
             }
         }
     }
 }
 
-val appVersion = project.findProperty("app.version")?.toString() ?: "1.1.0"
+/** 版本唯一来源：仓库根目录 VERSION（semver x.y.z） */
+val appVersion: String = run {
+    val vf = rootProject.layout.projectDirectory.file("VERSION").asFile
+    if (!vf.isFile) {
+        error("缺少根目录 VERSION 文件（单行版本号，如 1.2.0）")
+    }
+    vf.readText().lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }
+        ?: error("根目录 VERSION 为空")
+}
 val computedPackageVersion = appVersion
+
+/** 与 Configuration Cache 兼容：仅在配置阶段计算，勿在任务执行时读 project。 */
+val enableVerboseLogForBuild: Boolean = run {
+    val prop = project.findProperty("transbee.verboseLog")?.toString()
+    when {
+        prop.equals("true", ignoreCase = true) -> true
+        prop.equals("false", ignoreCase = true) -> false
+        else -> {
+            val names = gradle.startParameter.taskNames.map { it.lowercase() }
+            val releaseLike = names.any { tn ->
+                tn.contains("release") && (
+                    tn.contains("package") || tn.contains("distributable") ||
+                        tn.contains("notarize")
+                )
+            }
+            !releaseLike
+        }
+    }
+}
 
 val generateBundledNativeDistributionPath =
     tasks.register<GenerateBundledNativeDistributionPathTask>("generateBundledNativeDistributionPath") {
@@ -112,8 +141,12 @@ val generateBundledNativeDistributionPath =
 val generateBuildConfig = tasks.register("generateBuildConfig") {
     val outDir =
         layout.buildDirectory.dir("generated/transbee/kotlin/com/danteandroid/transbee/bundled")
+    inputs.property("transbee.enableVerboseLog", enableVerboseLogForBuild)
+    inputs.property("transbee.appVersion", computedPackageVersion)
+    inputs.file(rootProject.layout.projectDirectory.file("VERSION"))
     outputs.dir(outDir)
     val versionText = computedPackageVersion
+    val enableVerboseLog = enableVerboseLogForBuild
     doLast {
         val f = outDir.get().file("BuildConfig.kt").asFile
         f.parentFile.mkdirs()
@@ -122,6 +155,7 @@ val generateBuildConfig = tasks.register("generateBuildConfig") {
             
             object BuildConfig {
                 const val APP_VERSION = "$versionText"
+                const val ENABLE_VERBOSE_LOG = $enableVerboseLog
             }
         """.trimIndent())
     }
@@ -404,6 +438,8 @@ compose.desktop {
                 iconFile.set(project.file("icons/app_icon.ico"))
                 shortcut = true
                 menu = true
+                // Win10/11：当前用户安装，通常无需管理员权限；与系统 DPI 缩放由 JVM/Compose 处理
+                perUserInstall = true
             }
             linux {
                 iconFile.set(project.file("icons/app_icon_linux.png"))
@@ -439,14 +475,30 @@ afterEvaluate {
         "jvmRun",
         "hotDevJvm",
         "hotDevJvmAsync",
-        "runRelease",
         "runDistributable",
-        "runReleaseDistributable",
     ).forEach { tn ->
         tasks.findByName(tn)?.let { t ->
             if (t is JavaExec) {
                 t.configureComposeRunResources()
             }
         }
+    }
+
+    // Compose 默认注册两套桌面产物：default → build/compose/binaries/main/；
+    // release（含 ProGuard）→ main-release/。本项目只使用 default，禁用 release 相关任务。
+    listOf(
+        "createReleaseDistributable",
+        "flattenReleaseJars",
+        "notarizeReleaseDmg",
+        "packageReleaseDeb",
+        "packageReleaseDistributionForCurrentOS",
+        "packageReleaseDmg",
+        "packageReleaseMsi",
+        "packageReleaseUberJarForCurrentOS",
+        "proguardReleaseJars",
+        "runRelease",
+        "runReleaseDistributable",
+    ).forEach { tn ->
+        tasks.findByName(tn)?.enabled = false
     }
 }

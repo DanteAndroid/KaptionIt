@@ -4,6 +4,7 @@ import com.danteandroid.transbee.settings.ToolingSettings
 import com.danteandroid.transbee.translate.AppleTranslateBinary
 import com.danteandroid.transbee.translate.AppleTranslator
 import com.danteandroid.transbee.translate.DeepLTranslator
+import com.danteandroid.transbee.translate.GeminiTranslator
 import com.danteandroid.transbee.translate.GoogleTranslator
 import com.danteandroid.transbee.translate.OpenAiTranslator
 import com.danteandroid.transbee.translate.TargetLanguageMapper
@@ -12,6 +13,7 @@ import transbee.composeapp.generated.resources.Res
 import transbee.composeapp.generated.resources.err_apple_translate_macos_only
 import transbee.composeapp.generated.resources.test_err_apple_binary
 import transbee.composeapp.generated.resources.test_err_deepl_key
+import transbee.composeapp.generated.resources.test_err_gemini_key
 import transbee.composeapp.generated.resources.test_err_google_key
 import transbee.composeapp.generated.resources.test_err_openai_key
 
@@ -56,6 +58,11 @@ fun smokeTestSourceText(tooling: ToolingSettings): String {
         TranslationEngine.DEEPL -> {
             val targetCode = TargetLanguageMapper.toDeepLTargetCode(target)
             if (targetCode.startsWith("EN", ignoreCase = true)) CHINESE_SMOKE_TEXT else ENGLISH_SMOKE_TEXT
+        }
+
+        TranslationEngine.GEMINI -> {
+            val isEnTarget = target.contains("英语") || target.equals("English", ignoreCase = true)
+            if (isEnTarget) CHINESE_SMOKE_TEXT else ENGLISH_SMOKE_TEXT
         }
 
         TranslationEngine.OPENAI -> {
@@ -103,6 +110,15 @@ suspend fun runServiceSmokeTest(tooling: ToolingSettings, testText: String): Smo
             SmokeTestResult(testText, translated.firstOrNull().orEmpty())
         }
 
+        TranslationEngine.GEMINI -> {
+            if (tooling.geminiApiKey.isBlank()) error(JvmResourceStrings.text(Res.string.test_err_gemini_key))
+            val translated = GeminiTranslator(
+                apiKey = tooling.geminiApiKey,
+                model = tooling.geminiModel,
+            ).translateBatch(listOf(testText), target)
+            SmokeTestResult(testText, translated.texts.firstOrNull().orEmpty())
+        }
+
         TranslationEngine.OPENAI -> {
             if (tooling.openAiKey.isBlank()) error(JvmResourceStrings.text(Res.string.test_err_openai_key))
             val translated = OpenAiTranslator(
@@ -110,7 +126,7 @@ suspend fun runServiceSmokeTest(tooling: ToolingSettings, testText: String): Smo
                 model = tooling.openAiModel,
                 baseUrl = tooling.openAiBaseUrl,
             ).translateBatch(listOf(testText), target)
-            SmokeTestResult(testText, translated.firstOrNull().orEmpty())
+            SmokeTestResult(testText, translated.texts.firstOrNull().orEmpty())
         }
     }
 }

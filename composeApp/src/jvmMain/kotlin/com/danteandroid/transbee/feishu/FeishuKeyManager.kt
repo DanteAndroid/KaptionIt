@@ -17,6 +17,15 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import com.danteandroid.transbee.utils.JvmResourceStrings
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_feishu_key_col_missing
+import transbee.composeapp.generated.resources.err_feishu_key_empty
+import transbee.composeapp.generated.resources.err_feishu_table_missing
+import transbee.composeapp.generated.resources.err_feishu_vip_col_missing
+import transbee.composeapp.generated.resources.err_feishu_search_vip_failed
+import transbee.composeapp.generated.resources.err_key_properties_missing
+import transbee.composeapp.generated.resources.err_key_properties_required
 import java.io.IOException
 import java.io.InputStreamReader
 import java.net.URI
@@ -43,8 +52,7 @@ object FeishuKeyManager {
         val stream =
             FeishuKeyManager::class.java.classLoader?.getResourceAsStream("key.properties")
                 ?: error(
-                    "未找到 key.properties。请将 composeApp/src/jvmMain/resources/key.properties.example " +
-                        "复制为 key.properties 并填写 appId、appSecret。",
+                    JvmResourceStrings.text(Res.string.err_key_properties_missing),
                 )
         return stream.use {
             Properties().apply { load(InputStreamReader(it, StandardCharsets.UTF_8)) }
@@ -53,7 +61,7 @@ object FeishuKeyManager {
 
     private fun req(key: String): String {
         val v = props.getProperty(key)?.trim()
-        if (v.isNullOrEmpty()) error("key.properties 缺少或为空: $key")
+        if (v.isNullOrEmpty()) error(JvmResourceStrings.text(Res.string.err_key_properties_required, key))
         return v
     }
 
@@ -130,8 +138,10 @@ object FeishuKeyManager {
             val token = obtainTenantAccessTokenInternal()
             val tableId = resolveTableIdCached(token)
             val fields = fetchAllTableFields(token, tableId)
-            val vipField = findFieldByNames(fields, listOf("VIP", "vip")) ?: throw IllegalStateException("未找到 VIP 列")
-            val keyField = findFieldByNames(fields, listOf("Key", "key", "KEY")) ?: throw IllegalStateException("未找到 Key 列")
+            val vipField = findFieldByNames(fields, listOf("VIP", "vip"))
+                ?: throw IllegalStateException(JvmResourceStrings.text(Res.string.err_feishu_vip_col_missing))
+            val keyField = findFieldByNames(fields, listOf("Key", "key", "KEY"))
+                ?: throw IllegalStateException(JvmResourceStrings.text(Res.string.err_feishu_key_col_missing))
             val all = searchAllRecordsVipContains(token, tableId, vipField, deviceId)
             if (all.isEmpty()) {
                 throw PurchaseNotVerifiedException()
@@ -139,7 +149,7 @@ object FeishuKeyManager {
             val last = all.last()
             val keyText = extractFieldText(last.fields, keyField.field_name)
             if (keyText.isBlank()) {
-                throw FeishuApiException(null, "匹配到记录但 Key 列为空")
+                throw FeishuApiException(null, JvmResourceStrings.text(Res.string.err_feishu_key_empty))
             }
             keyText
         }
@@ -220,7 +230,7 @@ object FeishuKeyManager {
             pageToken = data.page_token
             if (pageToken.isNullOrEmpty()) break
         }
-        throw IllegalStateException("未找到名为「$TABLE_NAME」的数据表，请确认表名与 app_token")
+        throw IllegalStateException(JvmResourceStrings.text(Res.string.err_feishu_table_missing, TABLE_NAME))
     }
 
     /**
@@ -465,7 +475,7 @@ object FeishuKeyManager {
                 .build()
             val envelope = executeJson(request, SearchRecordsEnvelope.serializer())
             if (envelope.code != 0) {
-                throw FeishuApiException(envelope.code, envelope.msg.ifBlank { "search VIP 失败" })
+                throw FeishuApiException(envelope.code, envelope.msg.ifBlank { JvmResourceStrings.text(Res.string.err_feishu_search_vip_failed) })
             }
             val data = envelope.data ?: break
             raw += data.items.orEmpty()

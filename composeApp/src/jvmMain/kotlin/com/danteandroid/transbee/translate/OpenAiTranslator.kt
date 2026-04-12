@@ -1,62 +1,341 @@
 package com.danteandroid.transbee.translate
 
+import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.utils.JvmResourceStrings
+import com.danteandroid.transbee.utils.TransbeeLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_api_url_invalid
+import transbee.composeapp.generated.resources.err_openai_count_mismatch
+import transbee.composeapp.generated.resources.err_openai_doc_split_too_many
+import transbee.composeapp.generated.resources.err_openai_http
+import transbee.composeapp.generated.resources.err_openai_merged_long
+import transbee.composeapp.generated.resources.err_openai_no_content
+import transbee.composeapp.generated.resources.err_openai_too_many_unchanged
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.time.Duration
 
-class OpenAiTranslator(
-    private val apiKey: String,
-    private val model: String = "gpt-5-mini",
+data class OpenAiBatchTranslateResult(
+    val texts: List<String>,
+    /** 与 texts 等长；API JSON 字段名为 `nc`，仅在字幕模式且配置了专业词库时由模型填充，否则为 false */
+    val nc: List<Boolean>,
+)
+
+data class LlmSubtitleContext(
+    val prev2: String? = null,
+    val prev: String? = null,
+    val next: String? = null,
+    val next2: String? = null,
+)
+
+data class LlmCompletionPayload(
+    val content: String,
+    val finishReason: String?,
+)
+
+@Serializable
+data class IndexedSubtitleLine(
+    val id: Int,
+    val text: String,
+    val prev2: String? = null,
+    val prev: String? = null,
+    val next: String? = null,
+    val next2: String? = null,
+)
+
+open class OpenAiTranslator(
+    protected val apiKey: String,
+    protected val model: String = "gpt-5-mini",
     private val baseUrl: String = "https://api.openai.com/v1",
-    private val enforceSubtitleBatchRules: Boolean = true,
+    protected val enforceSubtitleBatchRules: Boolean = true,
+    protected val glossaryMappings: List<GlossaryLoader.TermMapping> = emptyList(),
+    protected val userPrompt: String = "",
 ) {
+    private val glossaryPromptBlock: String = GlossaryLoader.toForcedTranslationPromptBlock(glossaryMappings)
+
+    private val requestNeedCorrect: Boolean =
+        enforceSubtitleBatchRules && glossaryMappings.isNotEmpty()
+
     companion object {
         fun chatCompletionsEndpoint(baseUrl: String): String {
             val t = baseUrl.trim()
             if (t.contains("/chat/completions", ignoreCase = true)) return t
             return "${t.trimEnd('/')}/chat/completions"
         }
+
+        /** 与字幕翻译请求中的 `system` 正文一致（基于当前 [ToolingSettings]）。 */
+        fun subtitleSystemPromptForSettings(cfg: ToolingSettings): String {
+            val c = cfg.normalized()
+            val forced = GlossaryLoader.normalizeMappings(
+                c.forcedTranslationTerms.map { GlossaryLoader.TermMapping(source = it.source, target = it.target) },
+            )
+            return OpenAiTranslator(
+                apiKey = "",
+                glossaryMappings = forced,
+                userPrompt = c.translationPrompt,
+                enforceSubtitleBatchRules = true,
+            ).buildSystemMessage(c.targetLanguage)
+        }
     }
 
-    private val http = HttpClient.newBuilder()
+    protected fun buildSystemMessage(targetLanguage: String): String = buildString {
+        if (userPrompt.isNotBlank()) {
+            appendLine(userPrompt)
+            appendLine()
+        }
+        appendLine("你是一个严格的数据处理机器，只输出 JSON，不要有任何废话。")
+        if (enforceSubtitleBatchRules) {
+            appendLine("你将收到一个包含字幕数组的 JSON。你需要将其翻译成「$targetLanguage」，并返回结构一模一样的 JSON。")
+        } else {
+            appendLine("你将收到一个待翻译文本片段数组的 JSON。你需要将其翻译成「$targetLanguage」，并返回结构一模一样的 JSON。")
+        }
+        appendLine("【绝对强制规则】：")
+        appendLine("1. 输入了多少条记录，输出就必须是多少条！绝对禁止合并、删减或拆分任何条目。")
+        appendLine("2. 即使原文只有语气词（如啊、嗯）、单独的符号，或者是残缺的句子，你也必须原样保留或简单意译，严禁跳过或忽略该条目。")
+        if (requestNeedCorrect) {
+            appendLine(
+                "3. 返回格式必须为严格的 JSON 对象：{\"translations\":[{\"id\":0,\"text\":\"译文\",\"nc\":false}, ...]}。" +
+                    "每条须含 id、text、nc（布尔）；对照后文【专业词汇】中的英文 source，" +
+                    "若当前句疑似语音识别/听写错误且可能与某条 source 对应则 nc 为 true，否则为 false。不要滥用。",
+            )
+        } else {
+            appendLine("3. 返回格式必须为严格的 JSON 对象：{\"translations\":[{\"id\":0,\"text\":\"译文\"}, ...]}。每条只需 id 与 text，不要输出 nc 及其他多余字段。")
+        }
+        appendLine("4. 'id' 必须与输入的 'id' 完全一一对应。")
+        appendLine("5. 译文尽量简洁，不要扩写，避免输出超长导致 JSON 被截断。")
+        appendLine("6. 输入里可能包含形如 ⟦P0⟧ 的占位符：它们代表 URL/数字/代码等不可改内容。你必须原样保留这些占位符，禁止翻译、改写、加空格或删除。")
+        appendLine("7. 每条记录可能包含 prev/prev2/next/next2 字段（前后文），仅用于理解语境；你只翻译 text 字段，其余字段不需要输出。")
+        if (enforceSubtitleBatchRules) {
+            appendLine("8. 这是视频/音频字幕翻译。译文应自然口语化，贴近母语者的日常表达习惯，不要书面腔、不要机翻感。注意根据上下文推断代词指代和语气。")
+        } else {
+            appendLine("8. 请保持原文的格式结构（标题层级、列表标记、粗体斜体等 Markdown 语法），只翻译文字内容。")
+        }
+        if (glossaryPromptBlock.isNotEmpty()) {
+            appendLine(glossaryPromptBlock)
+        }
+    }
+
+    protected val http = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(30))
         .build()
-    private val json = Json {
+    protected val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
 
-    suspend fun translateBatch(texts: List<String>, targetLanguage: String): List<String> =
+    protected fun buildTranslationMessages(
+        texts: List<String>,
+        targetLanguage: String,
+        maxTokensOverride: Int?,
+        contexts: List<LlmSubtitleContext> = emptyList(),
+    ): Triple<String, String, Int> {
+        val inputArr = json.encodeToString(
+            texts.mapIndexed { idx, text ->
+                val ctx = contexts.getOrNull(idx)
+                IndexedSubtitleLine(
+                    id = idx,
+                    text = text,
+                    prev2 = ctx?.prev2 ?: texts.getOrNull(idx - 2),
+                    prev = ctx?.prev ?: texts.getOrNull(idx - 1),
+                    next = ctx?.next ?: texts.getOrNull(idx + 1),
+                    next2 = ctx?.next2 ?: texts.getOrNull(idx + 2),
+                )
+            },
+        )
+        val systemMsg = buildSystemMessage(targetLanguage)
+        val userMsg = "输入文本：\n$inputArr"
+        val maxTokens = maxTokensOverride ?: if (enforceSubtitleBatchRules) {
+            4096
+        } else {
+            val estimated = texts.sumOf { it.length } * 2 + 8192
+            estimated.coerceIn(12288, 16384)
+        }
+        return Triple(systemMsg, userMsg, maxTokens)
+    }
+
+    private data class ProtectedText(
+        val text: String,
+        val placeholders: Map<String, String>,
+    )
+
+    /** 字幕模式：保护 URL、邮箱、路径、行内代码、数字+单位 */
+    private fun protectForSubtitle(text: String): ProtectedText = protectCommon(text)
+
+    /** 文档模式：保护 URL、邮箱、行内代码、LaTeX 公式、Markdown 链接 */
+    private fun protectForDocument(text: String): ProtectedText = protectCommon(text, docMode = true)
+
+    private fun protectCommon(text: String, docMode: Boolean = false): ProtectedText {
+        var s = text
+        val map = linkedMapOf<String, String>()
+        var idx = 0
+
+        fun protectRegex(regex: Regex) {
+            s = regex.replace(s) { m ->
+                val raw = m.value
+                val key = "\u27E6P${idx++}\u27E7"
+                map[key] = raw
+                key
+            }
+        }
+
+        // 通用：URL / Email / 行内代码 / 数字+单位
+        protectRegex(Regex("""https?://[^\s]+""", RegexOption.IGNORE_CASE))
+        protectRegex(Regex("""\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b"""))
+        protectRegex(Regex("""`[^`]+`"""))
+        protectRegex(Regex("""\b\d[\d,._]*\s?(?:%|ms|s|sec|min|h|hz|khz|mhz|ghz|kb|mb|gb|tb|fps|dpi|\u2103|\u00B0c|\u00B0f)?\b""", RegexOption.IGNORE_CASE))
+
+        if (docMode) {
+            // Markdown 链接 [text](url)
+            protectRegex(Regex("""\[([^\]]*)\]\(([^)]+)\)"""))
+            // LaTeX 行间/行内公式
+            protectRegex(Regex("""\$\$[^$]+\$\$"""))
+            protectRegex(Regex("""\$[^$]+\$"""))
+        } else {
+            // 字幕专属：文件路径
+            protectRegex(Regex("""(?:(?:[A-Za-z]:\\|/)[^\s]+)"""))
+        }
+
+        return ProtectedText(text = s, placeholders = map)
+    }
+
+    private fun unprotect(protected: ProtectedText, translated: String): String {
+        if (protected.placeholders.isEmpty()) return translated
+        var s = translated
+        protected.placeholders.forEach { (k, v) ->
+            s = s.replace(k, v)
+        }
+        return s
+    }
+
+    private fun normalizeSubtitleOutput(text: String): String {
+        var s = text.trim()
+        if (s.isEmpty()) return s
+        // 轻量空白/省略号规范：不做激进的中英标点转换，避免误伤
+        s = s.replace(Regex("""[ \t]{2,}"""), " ")
+        s = s.replace("......", "\u2026")
+        s = s.replace(".....", "\u2026")
+        s = s.replace("....", "\u2026")
+        s = s.replace("...", "\u2026")
+        s = s.replace("..", "\u2026")
+        return s
+    }
+
+    private fun extractNumberTokens(text: String): Set<String> {
+        val raw = text.trim()
+        if (raw.isEmpty()) return emptySet()
+        val regex = Regex("""\d[\d,._]*""")
+        return regex.findAll(raw).map { m ->
+            m.value.replace(",", "").replace("_", "").trimEnd('.')
+        }.filter { it.isNotEmpty() }.toSet()
+    }
+
+    private fun hasUnrestoredPlaceholders(text: String): Boolean =
+        "\u27E6P" in text && "\u27E7" in text
+
+    suspend fun translateBatch(texts: List<String>, targetLanguage: String): OpenAiBatchTranslateResult =
         withContext(Dispatchers.IO) {
-            if (texts.isEmpty()) return@withContext emptyList()
+            if (texts.isEmpty()) return@withContext OpenAiBatchTranslateResult(emptyList(), emptyList())
             val out = MutableList(texts.size) { texts[it] }
+            val outNc = MutableList(texts.size) { false }
             val apiIndices = mutableListOf<Int>()
-            val apiTexts = mutableListOf<String>()
+            val apiTexts = mutableListOf<ProtectedText>()
+            // 在去重前基于原始顺序保存 +-2 句上下文
+            val apiContexts = mutableListOf<LlmSubtitleContext>()
             texts.forEachIndexed { i, t ->
                 if (shouldSkipApiForLine(t)) {
                     out[i] = t.trim()
                 } else {
+                    val protected = if (enforceSubtitleBatchRules) {
+                        protectForSubtitle(t)
+                    } else {
+                        protectForDocument(t)
+                    }
                     apiIndices.add(i)
-                    apiTexts.add(t)
+                    apiTexts.add(protected)
+                    apiContexts.add(
+                        LlmSubtitleContext(
+                            prev2 = texts.getOrNull(i - 2),
+                            prev = texts.getOrNull(i - 1),
+                            next = texts.getOrNull(i + 1),
+                            next2 = texts.getOrNull(i + 2),
+                        ),
+                    )
                 }
             }
-            if (apiTexts.isEmpty()) return@withContext out
-            val translated = translateBatchCore(apiTexts, targetLanguage)
-            apiIndices.forEachIndexed { j, origIdx ->
-                out[origIdx] = translated[j]
+            if (apiTexts.isEmpty()) {
+                return@withContext OpenAiBatchTranslateResult(out, outNc)
             }
-            out
+            // 同批去重：相同输入只翻一次，同时保留首次出现的上下文
+            val uniqueOrder = LinkedHashMap<String, MutableList<Int>>()
+            val uniqueContexts = LinkedHashMap<String, LlmSubtitleContext>()
+            apiTexts.forEachIndexed { j, p ->
+                uniqueOrder.getOrPut(p.text) { mutableListOf() }.add(j)
+                if (p.text !in uniqueContexts) uniqueContexts[p.text] = apiContexts[j]
+            }
+            val uniqueTexts = uniqueOrder.keys.toList()
+            val uniqueCtxList = uniqueTexts.map { uniqueContexts[it]!! }
+
+            val parsedUnique = translateBatchCore(uniqueTexts, targetLanguage, uniqueCtxList)
+
+            // 先填回（未做 QA/重试）
+            val translatedProtected = MutableList(apiTexts.size) { apiTexts[it].text }
+            val ncProtected = MutableList(apiTexts.size) { false }
+            uniqueTexts.forEachIndexed { k, key ->
+                val valText = parsedUnique.texts.getOrElse(k) { key }
+                val valNc = parsedUnique.nc.getOrElse(k) { false }
+                uniqueOrder[key]?.forEach { j ->
+                    translatedProtected[j] = valText
+                    ncProtected[j] = valNc
+                }
+            }
+
+            // 本地 QA：数字一致性 + 占位符残留；仅对少量异常做一次重试
+            if (enforceSubtitleBatchRules) {
+                val retryIndices = mutableListOf<Int>()
+                apiTexts.forEachIndexed { j, p ->
+                    val src = p.text
+                    val candidate = translatedProtected[j]
+                    val srcNums = extractNumberTokens(src)
+                    val dstNums = extractNumberTokens(candidate)
+                    val badNumbers = srcNums.isNotEmpty() && srcNums != dstNums
+                    val badPlaceholder = hasUnrestoredPlaceholders(candidate)
+                    val badBlank = candidate.trim().isEmpty()
+                    if (badBlank || badPlaceholder || badNumbers) retryIndices.add(j)
+                }
+
+                // 控制重试成本：只重试少量异常条目
+                val capped = retryIndices.distinct().take(4)
+                if (capped.isNotEmpty()) {
+                    val retryTexts = capped.map { apiTexts[it].text }
+                    val retryCtxs = capped.map { apiContexts[it] }
+                    val retryParsed = translateBatchCore(retryTexts, targetLanguage, retryCtxs)
+                    capped.forEachIndexed { r, j ->
+                        translatedProtected[j] = retryParsed.texts.getOrElse(r) { translatedProtected[j] }
+                        ncProtected[j] = retryParsed.nc.getOrElse(r) { ncProtected[j] }
+                    }
+                }
+            }
+
+            apiIndices.forEachIndexed { j, origIdx ->
+                val p = apiTexts[j]
+                val translated = unprotect(p, translatedProtected[j])
+                val normalized = normalizeSubtitleOutput(translated)
+                out[origIdx] = normalized
+                outNc[origIdx] = ncProtected[j]
+            }
+            OpenAiBatchTranslateResult(out, outNc)
         }
 
     private fun shouldSkipApiForLine(text: String): Boolean {
@@ -65,16 +344,20 @@ class OpenAiTranslator(
         return !t.any { ch -> Character.isLetter(ch) || Character.isDigit(ch) }
     }
 
-    private data class CompletionPayload(
-        val content: String,
-        val finishReason: String?,
+    private data class ParsedSubtitleBatch(
+        val texts: List<String>,
+        val nc: List<Boolean>,
     )
 
-    private fun translateBatchCore(texts: List<String>, targetLanguage: String): List<String> {
+    private fun translateBatchCore(
+        texts: List<String>,
+        targetLanguage: String,
+        contexts: List<LlmSubtitleContext> = emptyList(),
+    ): ParsedSubtitleBatch {
         if (!enforceSubtitleBatchRules) {
-            return translateDocumentBatchWithSplit(texts, targetLanguage, depth = 0)
+            return translateDocumentBatchWithSplit(texts, targetLanguage, depth = 0, contexts = contexts)
         }
-        val payload = postChatCompletion(texts, targetLanguage, maxTokensOverride = null)
+        val payload = postChatCompletion(texts, targetLanguage, maxTokensOverride = null, contexts = contexts)
         return parseResponse(payload.content, texts, targetLanguage, enforceSubtitleBatchRules)
     }
 
@@ -86,12 +369,13 @@ class OpenAiTranslator(
         texts: List<String>,
         targetLanguage: String,
         depth: Int,
-    ): List<String> {
+        contexts: List<LlmSubtitleContext> = emptyList(),
+    ): ParsedSubtitleBatch {
         require(texts.isNotEmpty())
         if (depth > 14) {
-            error("文档翻译拆分次数过多，请改小批大小或换模型。")
+            error(JvmResourceStrings.text(Res.string.err_openai_doc_split_too_many))
         }
-        val payload = postChatCompletion(texts, targetLanguage, maxTokensOverride = null)
+        val payload = postChatCompletion(texts, targetLanguage, maxTokensOverride = null, contexts = contexts)
         val truncated = payload.finishReason.equals("length", ignoreCase = true)
         val parsed = runCatching {
             parseResponse(payload.content, texts, targetLanguage, strictSubtitle = false)
@@ -100,7 +384,7 @@ class OpenAiTranslator(
 
         if (texts.size == 1) {
             if (truncated || parsed.isFailure) {
-                val payload2 = postChatCompletion(texts, targetLanguage, maxTokensOverride = 32768)
+                val payload2 = postChatCompletion(texts, targetLanguage, maxTokensOverride = 32768, contexts = contexts)
                 val truncated2 = payload2.finishReason.equals("length", ignoreCase = true)
                 val parsed2 = runCatching {
                     parseResponse(
@@ -125,39 +409,28 @@ class OpenAiTranslator(
         }
 
         val mid = texts.size / 2
-        val first = translateDocumentBatchWithSplit(texts.subList(0, mid), targetLanguage, depth + 1)
-        val second = translateDocumentBatchWithSplit(texts.subList(mid, texts.size), targetLanguage, depth + 1)
-        return first + second
+        val ctxFirst = if (contexts.size >= mid) contexts.subList(0, mid) else emptyList()
+        val ctxSecond = if (contexts.size >= texts.size) contexts.subList(mid, texts.size) else emptyList()
+        val first = translateDocumentBatchWithSplit(texts.subList(0, mid), targetLanguage, depth + 1, ctxFirst)
+        val second = translateDocumentBatchWithSplit(texts.subList(mid, texts.size), targetLanguage, depth + 1, ctxSecond)
+        return ParsedSubtitleBatch(
+            texts = first.texts + second.texts,
+            nc = first.nc + second.nc,
+        )
     }
 
-    private fun postChatCompletion(
+    protected open fun postChatCompletion(
         texts: List<String>,
         targetLanguage: String,
         maxTokensOverride: Int?,
-    ): CompletionPayload {
-        val inputArr = json.encodeToString(
-            texts.mapIndexed { idx, text -> IndexedLine(id = idx, text = text) },
+        contexts: List<LlmSubtitleContext> = emptyList(),
+    ): LlmCompletionPayload {
+        val (systemMsg, userMsg, maxTokens) = buildTranslationMessages(
+            texts,
+            targetLanguage,
+            maxTokensOverride,
+            contexts,
         )
-
-        val systemMsg = buildString {
-            appendLine("你是一个严格的数据处理机器，只输出 JSON，不要有任何废话。")
-            appendLine("你将收到一个包含字幕数组的 JSON。你需要将其翻译成「$targetLanguage」，并返回结构一模一样的 JSON。")
-            appendLine("【绝对强制规则】：")
-            appendLine("1. 输入了多少条记录，输出就必须是多少条！绝对禁止合并、删减或拆分任何条目。")
-            appendLine("2. 即使原文只有语气词（如啊、嗯）、单独的符号，或者是残缺的句子，你也必须原样保留或简单意译，严禁跳过或忽略该条目。")
-            appendLine("3. 返回格式必须为严格的 JSON 对象：{\"translations\":[{\"id\":0,\"text\":\"译文\"}, ...]}")
-            appendLine("4. 'id' 必须与输入的 'id' 完全一一对应。")
-            appendLine("5. 译文尽量简洁，不要扩写，避免输出超长导致 JSON 被截断。")
-        }
-
-        val userMsg = "输入文本：\n$inputArr"
-
-        val maxTokens = maxTokensOverride ?: if (enforceSubtitleBatchRules) {
-            4096
-        } else {
-            val estimated = texts.sumOf { it.length } * 2 + 8192
-            estimated.coerceIn(12288, 16384)
-        }
 
         val body = json.encodeToString(
             ChatCompletionRequest(
@@ -176,7 +449,7 @@ class OpenAiTranslator(
         val endpointUri = try {
             URI.create(endpoint)
         } catch (_: Exception) {
-            error("服务商 API 地址格式无效：$endpoint")
+            error(JvmResourceStrings.text(Res.string.err_api_url_invalid, endpoint))
         }
         val request = HttpRequest.newBuilder()
             .uri(endpointUri)
@@ -194,21 +467,28 @@ class OpenAiTranslator(
             response = TranslationHttp.sendString(http, request)
         }
 
+        val responseBody = response.body()
+
         if (response.statusCode() !in 200..299) {
             val code = response.statusCode()
             TranslationHttp.ensureNotRateLimited(code)
-            val snippet = response.body().trim().take(500)
+            val snippet = responseBody.trim().take(500)
             val hint = if (code == 404) {
                 "（404：地址请填到 …/v1 这类前缀，或填完整 …/chat/completions。）"
             } else ""
-            error("OpenAI 接口 HTTP $code $hint $snippet".trim())
+            val detail = (hint + " " + snippet).trim()
+            error(JvmResourceStrings.text(Res.string.err_openai_http, code, detail))
         }
 
-        val completion = json.decodeFromString<ChatCompletionResponse>(response.body())
+        TransbeeLog.llmHttp("OpenAI/request") { body }
+        TransbeeLog.llmHttp("OpenAI/user") { userMsg }
+        TransbeeLog.llmHttp("OpenAI/response") { responseBody }
+
+        val completion = json.decodeFromString<ChatCompletionResponse>(responseBody)
         val choice = completion.choices.firstOrNull()
         val content = choice?.message?.content
-            ?: error("翻译没有返回内容，请重试。")
-        return CompletionPayload(content = content, finishReason = choice.finishReason)
+            ?: error(JvmResourceStrings.text(Res.string.err_openai_no_content))
+        return LlmCompletionPayload(content = content, finishReason = choice.finishReason)
     }
 
     private fun parseResponse(
@@ -216,7 +496,7 @@ class OpenAiTranslator(
         sources: List<String>,
         targetLanguage: String,
         strictSubtitle: Boolean,
-    ): List<String> {
+    ): ParsedSubtitleBatch {
         val expectedSize = sources.size
         val trimmed = content.trim()
 
@@ -233,6 +513,7 @@ class OpenAiTranslator(
             )
 
         val result = MutableList(expectedSize) { sources[it] }
+        val ncFlags = MutableList(expectedSize) { false }
         val filledIds = mutableSetOf<Int>()
         arr.forEach { el ->
             if (el is JsonObject) {
@@ -242,6 +523,9 @@ class OpenAiTranslator(
                     ?: el["t"]?.jsonPrimitive?.contentOrNull
                 if (id != null && id in 0 until expectedSize && !text.isNullOrBlank()) {
                     result[id] = text
+                    if (requestNeedCorrect && strictSubtitle) {
+                        ncFlags[id] = el.readNcField()
+                    }
                     filledIds.add(id)
                 }
             }
@@ -256,7 +540,14 @@ class OpenAiTranslator(
                 } else {
                     first.jsonPrimitive.contentOrNull
                 }
-                if (!text.isNullOrBlank()) return listOf(text)
+                if (!text.isNullOrBlank()) {
+                    val nc = if (first is JsonObject && requestNeedCorrect && strictSubtitle) {
+                        first.readNcField()
+                    } else {
+                        false
+                    }
+                    return ParsedSubtitleBatch(listOf(text), listOf(nc))
+                }
             }
             error(
                 "翻译返回缺少有效的 id+text 结构，已拒绝结果。以下为助手正文前 400 字符：${trimmed.take(400)}"
@@ -264,13 +555,21 @@ class OpenAiTranslator(
         }
 
         if (strictSubtitle && filledIds.size < expectedSize) {
-            error("翻译返回条数不足（期望 $expectedSize，实际 ${filledIds.size}），已拒绝结果以触发重试。")
+            error(JvmResourceStrings.text(Res.string.err_openai_count_mismatch, expectedSize, filledIds.size))
         }
 
         if (strictSubtitle) {
             validateQualityOrThrow(sources, result, targetLanguage)
         }
-        return result
+        return ParsedSubtitleBatch(result, ncFlags)
+    }
+
+    private fun JsonObject.readNcField(): Boolean {
+        val p = this["nc"]?.jsonPrimitive ?: return false
+        p.booleanOrNull?.let { return it }
+        p.intOrNull?.let { return it == 1 }
+        val c = p.contentOrNull ?: return false
+        return c.equals("true", ignoreCase = true)
     }
 
     private fun validateQualityOrThrow(
@@ -290,7 +589,7 @@ class OpenAiTranslator(
                 targetLower.contains("korean") ||
                 targetLower.contains("韩")
         val latinRegex = Regex("[A-Za-z]")
-        val normalizer = Regex("[\\s\\p{Punct}，。！？、；：：“”‘’（）【】《》]+")
+        val normalizer = Regex("[\\s\\p{Punct}，。！？、；：：\u201C\u201D\u2018\u2019（）【】《》]+")
 
         fun norm(s: String): String = s.lowercase().replace(normalizer, "")
         fun latinRatio(s: String): Double {
@@ -322,10 +621,10 @@ class OpenAiTranslator(
 
         val unchangedThreshold = maxOf(2, sources.size / 4)
         if (unchangedOrUntranslated >= unchangedThreshold) {
-            error("检测到较多疑似未翻译条目（$unchangedOrUntranslated/${sources.size}），已拒绝结果并触发重试。")
+            error(JvmResourceStrings.text(Res.string.err_openai_too_many_unchanged, unchangedOrUntranslated, sources.size))
         }
         if (suspiciousMerged > 0) {
-            error("检测到疑似合并后的超长译文，已拒绝结果并触发重试。")
+            error(JvmResourceStrings.text(Res.string.err_openai_merged_long))
         }
     }
 
@@ -379,12 +678,6 @@ class OpenAiTranslator(
         }
     }
 }
-
-@Serializable
-private data class IndexedLine(
-    val id: Int,
-    val text: String,
-)
 
 @Serializable
 private data class ResponseFormat(

@@ -3,6 +3,7 @@
 package com.danteandroid.transbee.screen
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -133,12 +134,23 @@ fun App(topWindowInset: Dp = 0.dp) {
                 modifier = Modifier.padding(padding).fillMaxSize(),
             ) {
                 val isWideEnough = maxWidth >= 560.dp
-                val sidebarVisible = isWideEnough && tooling.sidebarExpanded
+                val sidebarTargetVisible = isWideEnough && tooling.sidebarExpanded
+                val sidebarVisibilityState = remember { MutableTransitionState(sidebarTargetVisible) }
+                sidebarVisibilityState.targetState = sidebarTargetVisible
+                // 首帧 maxWidth 常从 0 变到真实值，侧栏若用 expandHorizontally 会像整窗/底部被撑开；首次出现改为无动画，之后折叠再展开仍有过渡
+                var sidebarVisibilityMotionEnabled by remember { mutableStateOf(false) }
+                LaunchedEffect(sidebarTargetVisible) {
+                    if (sidebarTargetVisible) sidebarVisibilityMotionEnabled = true
+                }
                 val currentMaxWidth = maxWidth
                 Row(Modifier.fillMaxSize()) {
                     AnimatedVisibility(
-                        visible = sidebarVisible,
-                        enter = expandHorizontally() + fadeIn(),
+                        visibleState = sidebarVisibilityState,
+                        enter = if (sidebarVisibilityMotionEnabled) {
+                            expandHorizontally() + fadeIn()
+                        } else {
+                            EnterTransition.None
+                        },
                         exit = shrinkHorizontally() + fadeOut(),
                     ) {
                         Row(modifier = Modifier.fillMaxHeight().width(currentMaxWidth * 0.32f)) {
@@ -195,7 +207,7 @@ fun App(topWindowInset: Dp = 0.dp) {
                             )
                             
                             // Manual handle to expand the sidebar when it's wide enough but manually collapsed
-                            if (isWideEnough && !tooling.sidebarExpanded) {
+                            if (isWideEnough && !tooling.sidebarExpanded && sidebarVisibilityState.isIdle && !sidebarVisibilityState.currentState) {
                                 IconButton(
                                     onClick = { viewModel.updateTooling { it.copy(sidebarExpanded = true) } },
                                     modifier = Modifier
@@ -240,7 +252,7 @@ fun App(topWindowInset: Dp = 0.dp) {
                 onDismissRequest = { showSetting = false },
                 onLocaleZh = { appLanguage = AppLanguage.ZH; AppLocale.apply(AppLanguage.ZH) },
                 onLocaleEn = { appLanguage = AppLanguage.EN; AppLocale.apply(AppLanguage.EN) },
-                onClearTranscriptionCache = viewModel::clearTranscriptionCache,
+                onClearTranscriptionCache = { viewModel.clearTranscriptionCache() },
             )
         }
 
@@ -495,7 +507,13 @@ private fun TranslationServiceDialog(
                                 horizontalArrangement = Arrangement.End,
                             ) {
                                 TextButton(onClick = onConfirmPurchase, enabled = !purchaseBusy) {
-                                    Text(stringResource(Res.string.purchase_i_paid))
+                                    Text(
+                                        if (purchaseBusy) {
+                                            stringResource(Res.string.purchase_busy)
+                                        } else {
+                                            stringResource(Res.string.purchase_i_paid)
+                                        },
+                                    )
                                 }
                             }
                         }

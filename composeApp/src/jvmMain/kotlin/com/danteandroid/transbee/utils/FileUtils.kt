@@ -2,6 +2,7 @@ package com.danteandroid.transbee.utils
 
 import transbee.composeapp.generated.resources.Res
 import transbee.composeapp.generated.resources.dialog_open_video_file
+import transbee.composeapp.generated.resources.err_zip_md_missing
 import java.awt.FileDialog
 import java.awt.Frame
 import java.awt.GraphicsEnvironment
@@ -29,13 +30,15 @@ fun fileFromDragDropPath(pathOrUri: String): File? {
 fun pickFilesWithChooser(): List<File> {
     if (GraphicsEnvironment.isHeadless()) return emptyList()
     val holder = mutableListOf<File>()
-    SwingUtilities.invokeAndWait {
+    val showDialog: () -> Unit = {
         val title = JvmResourceStrings.text(Res.string.dialog_open_video_file)
         val fd = FileDialog(null as Frame?, title, FileDialog.LOAD)
         fd.isMultipleMode = true
         fd.isVisible = true
         fd.files?.let { holder.addAll(it) }
+        Unit
     }
+    if (SwingUtilities.isEventDispatchThread()) showDialog() else SwingUtilities.invokeAndWait(showDialog)
     return holder
 }
 
@@ -52,7 +55,7 @@ fun extractMdFromZip(zipFile: File, destMdFile: File): File {
         val mdEntry = mdFiles.firstOrNull {
             it.name.equals("full.md", ignoreCase = true) ||
                 it.name.endsWith("/full.md", ignoreCase = true)
-        } ?: mdFiles.firstOrNull() ?: error("ZIP 包中未找到 Markdown 文件")
+        } ?: mdFiles.firstOrNull() ?: error(JvmResourceStrings.text(Res.string.err_zip_md_missing))
 
         val mdZipPath = mdEntry.name.replace('\\', '/')
         val folderPrefix =

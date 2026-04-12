@@ -2,6 +2,7 @@ package com.danteandroid.transbee.process
 
 import com.danteandroid.transbee.native.BundledNativeTools
 import com.danteandroid.transbee.settings.ToolingSettings
+import com.danteandroid.transbee.settings.PdfTranslateFormat
 import com.danteandroid.transbee.settings.TranscriptionCacheKeyDto
 import com.danteandroid.transbee.settings.TranscriptionCacheStore
 import com.danteandroid.transbee.srt.SubtitleBuilder
@@ -36,13 +37,17 @@ import transbee.composeapp.generated.resources.msg_pdf_translating
 import transbee.composeapp.generated.resources.msg_text_translate_progress
 import transbee.composeapp.generated.resources.msg_text_translating
 import transbee.composeapp.generated.resources.msg_transcribing
+import transbee.composeapp.generated.resources.msg_transcribing_progress
 import transbee.composeapp.generated.resources.msg_transcription_cache_hit
 import transbee.composeapp.generated.resources.msg_whisper_line
 import transbee.composeapp.generated.resources.tasks_processing
 import java.io.File
 import java.net.URI
 import java.nio.file.Files
+import java.security.MessageDigest
 import java.time.Duration
+import kotlin.math.max
+import kotlin.text.Charsets
 
 interface PipelineListener {
     fun onStateChange(
@@ -60,6 +65,9 @@ interface PipelineListener {
 object PipelineEngine {
 
     private const val MinerUDownloadTotalUnknown = "—"
+
+    private val whisperTimestampRegex =
+        Regex("""(\d{1,2}):(\d{2}):(\d{2}(?:\.\d+)?)""")
 
     private val mineruDocExtensions = setOf(
         "pdf", "doc", "docx", "ppt", "pptx",
@@ -101,25 +109,30 @@ object PipelineEngine {
 
         var workDir: java.nio.file.Path? = null
         try {
-            val cacheKey = transcriptionCacheKey(file, cfg)
-            val whisperDoc = TranscriptionCacheStore.get(cacheKey)?.also {
-                listener.onStateChange(
-                    PipelinePhase.Translating,
-                    JvmResourceStrings.text(Res.string.msg_transcription_cache_hit),
-                    0f,
-                    false
+            val normalizedCfg = cfg.normalized()
+            val cacheKey = transcriptionCacheKey(file, cfg, normalizedCfg)
+            val whisperDoc = (
+                (if (cfg.useTranscriptionCache) TranscriptionCacheStore.get(cacheKey) else null)?.also {
+                    listener.onStateChange(
+                        PipelinePhase.Translating,
+                        JvmResourceStrings.text(Res.string.msg_transcription_cache_hit),
+                        0f,
+                        false
+                    )
+                } ?: run {
+                    listener.onStateChange(
+                        PipelinePhase.Extracting,
+                        JvmResourceStrings.text(Res.string.msg_extract_audio),
+                        0f,
+                        true
+                    )
+                    transcribeMedia(file, cfg, listener) {
+                        workDir = it
+                    }.also {
+                        if (cfg.useTranscriptionCache) TranscriptionCacheStore.put(cacheKey, it)
+                    }
+                }
                 )
-            } ?: run {
-                listener.onStateChange(
-                    PipelinePhase.Extracting,
-                    JvmResourceStrings.text(Res.string.msg_extract_audio),
-                    0f,
-                    true
-                )
-                transcribeMedia(file, cfg, listener) {
-                    workDir = it
-                }.also { TranscriptionCacheStore.put(cacheKey, it) }
-            }
 
             val buildResult = SubtitleBuilder.buildSubtitleExportFiles(
                 cfg = cfg, whisperDoc = whisperDoc,
@@ -134,11 +147,17 @@ object PipelineEngine {
                 }
             )
 
-            val outputPath = buildResult.files.firstNotNullOfOrNull { payload ->
+            var primaryPath: String? = null
+            buildResult.files.forEach { payload ->
                 val outFile = file.subtitleOutputFile(cfg.exportFormat, payload.nameSuffix)
                 Files.writeString(outFile.toPath(), payload.body)
-                outFile.absolutePath
+                val path = outFile.absolutePath
+                // 优先上报带后缀的文件路径（即译文或双语文件）；如果没有带后缀的，则回退到第一个
+                if (primaryPath == null || payload.nameSuffix != null) {
+                    primaryPath = path
+                }
             }
+            val outputPath = primaryPath
             listener.onCompleted(outputPath, buildResult.translationStats)
         } catch (e: Throwable) {
             if (e !is CancellationException) listener.onError(
@@ -299,7 +318,7 @@ object PipelineEngine {
                 return
             }
 
-            val mdContent = extractedMd.readText()
+            val mdContent = withContext(Dispatchers.IO) { extractedMd.readText() }
             val paragraphs = MdTranslator.splitParagraphs(mdContent)
             val translatableTotal = MdTranslator.countTranslatableParagraphs(paragraphs)
             listener.onStateChange(
@@ -308,13 +327,17 @@ object PipelineEngine {
                 if (translatableTotal == 0) 1f else 0f,
                 false
             )
-            val translated = MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
-                val t = total.coerceAtLeast(1)
-                listener.onProgress(
-                    JvmResourceStrings.text(Res.string.msg_pdf_translating, done, total),
-                    done.toFloat() / t,
-                    false,
-                )
+            val translated = if (cfg.pdfTranslateFormat == PdfTranslateFormat.SOURCE_ONLY) {
+                paragraphs
+            } else {
+                MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
+                    val t = total.coerceAtLeast(1)
+                    listener.onProgress(
+                        JvmResourceStrings.text(Res.string.msg_pdf_translating, done, total),
+                        done.toFloat() / t,
+                        false,
+                    )
+                }
             }
             val assembled = MdTranslator.assemble(paragraphs, translated, cfg.pdfTranslateFormat)
             destMdFile.writeText(assembled)
@@ -343,13 +366,17 @@ object PipelineEngine {
             )
             val mdContent = withContext(Dispatchers.IO) { file.readText() }
             val paragraphs = MdTranslator.splitParagraphs(mdContent)
-            val translated = MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
-                val t = total.coerceAtLeast(1)
-                listener.onProgress(
-                    JvmResourceStrings.text(Res.string.msg_text_translate_progress, done, total),
-                    done.toFloat() / t,
-                    false,
-                )
+            val translated = if (cfg.pdfTranslateFormat == PdfTranslateFormat.SOURCE_ONLY) {
+                paragraphs
+            } else {
+                MdTranslator.translateParagraphs(paragraphs, cfg) { done, total ->
+                    val t = total.coerceAtLeast(1)
+                    listener.onProgress(
+                        JvmResourceStrings.text(Res.string.msg_text_translate_progress, done, total),
+                        done.toFloat() / t,
+                        false,
+                    )
+                }
             }
             val assembled = MdTranslator.assemble(paragraphs, translated, cfg.pdfTranslateFormat)
             val destFile = File(file.parentFile, "${file.nameWithoutExtension}_translated.md")
@@ -416,15 +443,25 @@ object PipelineEngine {
         )
         if (cfg.whisperVadEnabled) WhisperVadModel.ensureDownloaded { _, _ -> }
 
+        val glossarySources = cfg.normalized().forcedTranslationTerms.map { it.source }
+        val basePrompt = cfg.translationPrompt.ifBlank { "你是一个视频翻译的专家" }
+        val initialPrompt = if (glossarySources.isNotEmpty()) {
+            "$basePrompt，可能出现的词有：${glossarySources.take(50).joinToString(", ")}"
+        } else {
+            basePrompt
+        }
+
         val outBase = tmpDir.resolve("whisper_out").toAbsolutePath().toString()
         runWhisperCli(
             BundledNativeTools.resolveWhisperBinaryPath(),
             cfg,
             wavPath,
             outBase,
-            cfg.whisperVadEnabled
-        ) { msg ->
-            listener.onProgress(msg, null, true)
+            cfg.whisperVadEnabled,
+            estimateWavDurationSeconds(File(wavPath)),
+            initialPrompt
+        ) { msg, progress, indeterminate ->
+            listener.onProgress(msg, progress, indeterminate)
         }.let { code ->
             if (code != 0) error(JvmResourceStrings.text(Res.string.err_whisper, code))
         }
@@ -432,15 +469,31 @@ object PipelineEngine {
         return WhisperJsonParser.parseResult(Files.readString(java.nio.file.Paths.get("$outBase.json")))
     }
 
-    private fun transcriptionCacheKey(file: File, cfg: ToolingSettings) = TranscriptionCacheKeyDto(
+    private fun transcriptionCacheKey(
+        file: File,
+        cfg: ToolingSettings,
+        normalizedCfg: ToolingSettings = cfg.normalized(),
+    ) = TranscriptionCacheKeyDto(
         fileKey = file.absolutePath,
         fileSize = file.length(),
         fileLastModified = file.lastModified(),
         whisperModel = cfg.whisperModel,
         whisperLanguage = cfg.whisperLanguage,
         whisperVadEnabled = cfg.whisperVadEnabled,
-        whisperThreadCount = WhisperCliArgs.threadCount()
+        whisperThreadCount = WhisperCliArgs.threadCount(),
+        glossaryTermsFingerprint = forcedTranslationTermsFingerprint(normalizedCfg),
+        whisperSegmentPolicy = "${WhisperCliArgs.VAD_MAX_SPEECH_DURATION_S}|${WhisperCliArgs.SEGMENT_MAX_CHARS}|sow|ojf|tokp",
     )
+
+    private fun forcedTranslationTermsFingerprint(cfg: ToolingSettings): String {
+        val lines = cfg.forcedTranslationTerms
+            .map { "${it.source}\u001f${it.target}" }
+            .sorted()
+        val payload = lines.joinToString("\n")
+        if (payload.isEmpty()) return ""
+        val md = MessageDigest.getInstance("SHA-256")
+        return md.digest(payload.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+    }
 
     private suspend fun runWhisperCli(
         bin: String,
@@ -448,27 +501,83 @@ object PipelineEngine {
         wav: String,
         out: String,
         vad: Boolean,
-        onMsg: (String) -> Unit
-    ): Int =
-        ProcessRunner.run(
+        wavDurationSeconds: Double,
+        initialPrompt: String,
+        onMsg: (String, Float?, Boolean) -> Unit
+    ): Int {
+        var lastTsUiMs = 0L
+        var lastLineUiMs = 0L
+        return ProcessRunner.run(
             command = buildList {
                 add(bin); add("-t"); add(WhisperCliArgs.threadCount().toString()); add("-m"); add(
                 cfg.whisperModel
             )
-                add("-l"); add(cfg.whisperLanguage.lowercase()); add("-mc"); add("0"); add("-f"); add(
+                add("-l"); add(cfg.whisperLanguage.lowercase()); add("-mc"); add("0")
+                add("-ml"); add(WhisperCliArgs.SEGMENT_MAX_CHARS.toString())
+                add("-sow")
+                add("-f"); add(
                 wav
-            ); add("-oj"); add("-of"); add(out)
+            ); add("-oj"); add("-ojf"); add("-of"); add(out)
                 if (vad) {
                     add("--vad"); add("-vm"); add(WhisperVadModel.modelFile().absolutePath)
+                    add("-vmsd"); add(WhisperCliArgs.VAD_MAX_SPEECH_DURATION_S.toString())
+                }
+                if (initialPrompt.isNotBlank()) {
+                    add("--prompt"); add(initialPrompt)
                 }
             },
             onStdoutLine = { line ->
-                onMsg(
-                    JvmResourceStrings.text(
-                        Res.string.msg_whisper_line,
-                        line.take(120)
-                    )
-                )
+                val now = System.currentTimeMillis()
+                val t = parseWhisperTimestampSeconds(line)
+                if (t != null && wavDurationSeconds > 0.0) {
+                    if (now - lastTsUiMs >= 90L) {
+                        lastTsUiMs = now
+                        val clamped = t.coerceIn(0.0, wavDurationSeconds)
+                        onMsg(
+                            JvmResourceStrings.text(
+                                Res.string.msg_transcribing_progress,
+                                formatClock(clamped),
+                                formatClock(wavDurationSeconds),
+                            ),
+                            (clamped / wavDurationSeconds).toFloat().coerceIn(0f, 0.99f),
+                            false,
+                        )
+                    }
+                } else {
+                    if (now - lastLineUiMs >= 120L) {
+                        lastLineUiMs = now
+                        onMsg(
+                            JvmResourceStrings.text(
+                                Res.string.msg_whisper_line,
+                                line.take(120)
+                            ),
+                            null,
+                            true,
+                        )
+                    }
+                }
             }
         )
+    }
+
+    private fun estimateWavDurationSeconds(wavFile: File): Double {
+        val pcmBytes = max(0L, wavFile.length() - 44L)
+        return pcmBytes / (16000.0 * 2.0)
+    }
+
+    private fun parseWhisperTimestampSeconds(line: String): Double? {
+        val m = whisperTimestampRegex.find(line) ?: return null
+        val h = m.groupValues[1].toIntOrNull() ?: return null
+        val mm = m.groupValues[2].toIntOrNull() ?: return null
+        val s = m.groupValues[3].toDoubleOrNull() ?: return null
+        return h * 3600 + mm * 60 + s
+    }
+
+    private fun formatClock(seconds: Double): String {
+        val total = seconds.toInt().coerceAtLeast(0)
+        val h = total / 3600
+        val m = (total % 3600) / 60
+        val s = total % 60
+        return "%02d:%02d:%02d".format(h, m, s)
+    }
 }

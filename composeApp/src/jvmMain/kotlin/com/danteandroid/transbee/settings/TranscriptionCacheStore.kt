@@ -16,6 +16,9 @@ data class TranscriptionCacheKeyDto(
     val whisperLanguage: String,
     val whisperVadEnabled: Boolean,
     val whisperThreadCount: Int,
+    val glossaryTermsFingerprint: String = "",
+    /** VAD 单段时长、-ml 等策略变更时 bump，避免命中旧缓存长句 */
+    val whisperSegmentPolicy: String = "",
 )
 
 @Serializable

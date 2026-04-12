@@ -16,6 +16,7 @@ import org.jetbrains.compose.resources.painterResource
 import transbee.composeapp.generated.resources.Res
 import transbee.composeapp.generated.resources.app_icon
 import transbee.composeapp.generated.resources.app_title
+import java.awt.Color as AwtColor
 import java.awt.GraphicsEnvironment
 import java.awt.Taskbar
 import java.util.Locale
@@ -107,6 +108,10 @@ fun main() {
             state = windowState,
             icon = painterResource(Res.drawable.app_icon),
         ) {
+            // 避免首次绘制前露出窗口默认白底（尤其是底部/边缘区域）
+            SideEffect {
+                runCatching { window.background = AwtColor(0x08, 0x0C, 0x1E) }
+            }
             if (isMacOs()) {
                 SideEffect {
                     SwingUtilities.invokeLater {

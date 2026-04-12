@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.withPermit
 import transbee.composeapp.generated.resources.Res
 import transbee.composeapp.generated.resources.err_apple_binary
 import transbee.composeapp.generated.resources.err_apple_translate_macos_only
+import transbee.composeapp.generated.resources.err_llm_count_mismatch
 import transbee.composeapp.generated.resources.err_translation_no_response
 import transbee.composeapp.generated.resources.hint_apple_translate_pair
 import transbee.composeapp.generated.resources.msg_translate_apple_progress
@@ -22,6 +23,8 @@ import transbee.composeapp.generated.resources.msg_translate_apple_running
 import transbee.composeapp.generated.resources.msg_translate_deepl_progress
 import transbee.composeapp.generated.resources.msg_translate_deepl_running
 import transbee.composeapp.generated.resources.msg_translate_google_progress
+import transbee.composeapp.generated.resources.msg_translate_gemini_progress
+import transbee.composeapp.generated.resources.msg_translate_gemini_running
 import transbee.composeapp.generated.resources.msg_translate_google_running
 import transbee.composeapp.generated.resources.msg_translate_openai_progress
 import transbee.composeapp.generated.resources.msg_translate_openai_running
@@ -41,6 +44,17 @@ class TranslationMetrics {
     val retryCount = AtomicInteger(0)
 }
 
+data class SegmentTranslationOutcome(
+    val translations: List<String>,
+    /** 与 segments 一一对应；仅 OpenAI 字幕翻译且配置了专业词库时非 null */
+    val sourceNeedsRelaxedTermCorrection: List<Boolean>?,
+)
+
+private data class TranslationChunkOutput(
+    val texts: List<String>,
+    val nc: List<Boolean>?,
+)
+
 object TranslationService {
 
     suspend fun translateSegments(
@@ -49,8 +63,11 @@ object TranslationService {
         segments: List<TranscriptSegment>,
         metrics: TranslationMetrics,
         onProgressUpdate: (progress: Float, message: String) -> Unit
-    ): List<String> {
+    ): SegmentTranslationOutcome {
         val engine = cfg.translationEngine
+        val forcedTerms = GlossaryLoader.normalizeMappings(
+            cfg.forcedTranslationTerms.map { GlossaryLoader.TermMapping(source = it.source, target = it.target) }
+        )
         val appleSource = TargetLanguageMapper.whisperLanguageToAppleSource(whisperDoc.whisperLanguage)
         val appleTarget = TargetLanguageMapper.toAppleLocale(cfg.targetLanguage, forTarget = true)
         val googleTarget = TargetLanguageMapper.toGoogleTargetCode(cfg.targetLanguage)
@@ -62,6 +79,7 @@ object TranslationService {
                 TranslationEngine.APPLE -> JvmResourceStrings.text(Res.string.msg_translate_apple_running)
                 TranslationEngine.GOOGLE -> JvmResourceStrings.text(Res.string.msg_translate_google_running)
                 TranslationEngine.DEEPL -> JvmResourceStrings.text(Res.string.msg_translate_deepl_running)
+                TranslationEngine.GEMINI -> JvmResourceStrings.text(Res.string.msg_translate_gemini_running)
                 TranslationEngine.OPENAI -> JvmResourceStrings.text(Res.string.msg_translate_openai_running)
             }
         )
@@ -80,10 +98,13 @@ object TranslationService {
                     metrics = metrics,
                     translateChunk = { texts ->
                         try {
-                            translator.translateBatch(
-                                texts = texts,
-                                sourceAppleLocale = appleSource,
-                                targetAppleLocale = appleTarget,
+                            TranslationChunkOutput(
+                                texts = translator.translateBatch(
+                                    texts = texts,
+                                    sourceAppleLocale = appleSource,
+                                    targetAppleLocale = appleTarget,
+                                ),
+                                nc = null,
                             )
                         } catch (e: Exception) {
                             val hint = JvmResourceStrings.text(
@@ -98,7 +119,9 @@ object TranslationService {
                     progressMessage = { done, total ->
                         JvmResourceStrings.text(Res.string.msg_translate_apple_progress, done, total)
                     },
-                    onProgressUpdate = onProgressUpdate
+                    onProgressUpdate = onProgressUpdate,
+                    translationEngine = TranslationEngine.APPLE,
+                    collectNeedCorrectFlags = false,
                 )
             }
 
@@ -109,16 +132,21 @@ object TranslationService {
                     chunkSize = 100,
                     metrics = metrics,
                     translateChunk = { texts ->
-                        translator.translateBatch(
-                            texts = texts,
-                            targetGoogleCode = googleTarget,
+                        TranslationChunkOutput(
+                            texts = translator.translateBatch(
+                                texts = texts,
+                                targetGoogleCode = googleTarget,
+                            ),
+                            nc = null,
                         )
                     },
                     progressMessage = { done, total ->
                         JvmResourceStrings.text(Res.string.msg_translate_google_progress, done, total)
                     },
                     concurrency = TranslationConcurrency,
-                    onProgressUpdate = onProgressUpdate
+                    onProgressUpdate = onProgressUpdate,
+                    translationEngine = TranslationEngine.GOOGLE,
+                    collectNeedCorrectFlags = false,
                 )
             }
 
@@ -132,16 +160,52 @@ object TranslationService {
                     chunkSize = TranslationChunkSizeOpenAiStyle,
                     metrics = metrics,
                     translateChunk = { texts ->
-                        translator.translateBatch(
-                            texts = texts,
-                            targetDeepL = deeplTarget,
+                        TranslationChunkOutput(
+                            texts = translator.translateBatch(
+                                texts = texts,
+                                targetDeepL = deeplTarget,
+                            ),
+                            nc = null,
                         )
                     },
                     progressMessage = { done, total ->
                         JvmResourceStrings.text(Res.string.msg_translate_deepl_progress, done, total)
                     },
                     concurrency = TranslationConcurrency,
-                    onProgressUpdate = onProgressUpdate
+                    onProgressUpdate = onProgressUpdate,
+                    translationEngine = TranslationEngine.DEEPL,
+                    collectNeedCorrectFlags = false,
+                )
+            }
+
+            TranslationEngine.GEMINI -> {
+                val translator = GeminiTranslator(
+                    apiKey = cfg.geminiApiKey,
+                    model = cfg.geminiModel,
+                    glossaryMappings = forcedTerms,
+                    userPrompt = cfg.translationPrompt,
+                )
+                translateByChunk(
+                    segments = segments,
+                    chunkSize = TranslationChunkSizeOpenAiStyle,
+                    metrics = metrics,
+                    translateChunk = { texts ->
+                        val batch = translator.translateBatch(
+                            texts = texts,
+                            targetLanguage = cfg.targetLanguage,
+                        )
+                        TranslationChunkOutput(
+                            texts = batch.texts,
+                            nc = if (forcedTerms.isNotEmpty()) batch.nc else null,
+                        )
+                    },
+                    progressMessage = { done, total ->
+                        JvmResourceStrings.text(Res.string.msg_translate_gemini_progress, done, total)
+                    },
+                    concurrency = TranslationConcurrencyOpenAi,
+                    onProgressUpdate = onProgressUpdate,
+                    translationEngine = TranslationEngine.GEMINI,
+                    collectNeedCorrectFlags = forcedTerms.isNotEmpty(),
                 )
             }
 
@@ -150,22 +214,30 @@ object TranslationService {
                     apiKey = cfg.openAiKey,
                     model = cfg.openAiModel,
                     baseUrl = cfg.openAiBaseUrl,
+                    glossaryMappings = forcedTerms,
+                    userPrompt = cfg.translationPrompt,
                 )
                 translateByChunk(
                     segments = segments,
                     chunkSize = TranslationChunkSizeOpenAiStyle,
                     metrics = metrics,
                     translateChunk = { texts ->
-                        translator.translateBatch(
+                        val batch = translator.translateBatch(
                             texts = texts,
                             targetLanguage = cfg.targetLanguage,
+                        )
+                        TranslationChunkOutput(
+                            texts = batch.texts,
+                            nc = if (forcedTerms.isNotEmpty()) batch.nc else null,
                         )
                     },
                     progressMessage = { done, total ->
                         JvmResourceStrings.text(Res.string.msg_translate_openai_progress, done, total)
                     },
                     concurrency = TranslationConcurrencyOpenAi,
-                    onProgressUpdate = onProgressUpdate
+                    onProgressUpdate = onProgressUpdate,
+                    translationEngine = TranslationEngine.OPENAI,
+                    collectNeedCorrectFlags = forcedTerms.isNotEmpty(),
                 )
             }
         }
@@ -175,14 +247,24 @@ object TranslationService {
         segments: List<TranscriptSegment>,
         chunkSize: Int,
         metrics: TranslationMetrics,
-        translateChunk: suspend (texts: List<String>) -> List<String>,
+        translateChunk: suspend (texts: List<String>) -> TranslationChunkOutput,
         progressMessage: (done: Int, total: Int) -> String,
         concurrency: Int = 1,
-        onProgressUpdate: (progress: Float, message: String) -> Unit
-    ): List<String> {
+        onProgressUpdate: (progress: Float, message: String) -> Unit,
+        translationEngine: TranslationEngine,
+        collectNeedCorrectFlags: Boolean = false,
+    ): SegmentTranslationOutcome {
         val chunks = segments.chunked(chunkSize)
         val totalSegments = segments.size
         val translatedCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+        val needCorrectCache = if (
+            (translationEngine == TranslationEngine.OPENAI || translationEngine == TranslationEngine.GEMINI) &&
+            collectNeedCorrectFlags
+        ) {
+            java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+        } else {
+            null
+        }
         val doneCount = AtomicInteger(0)
 
         fun buildPart(chunk: List<TranscriptSegment>): Triple<List<String>, List<Int>, List<String>> {
@@ -203,11 +285,14 @@ object TranslationService {
                 val (sourceTexts, missingIndexes, missingTexts) = buildPart(chunk)
                 val part = MutableList(sourceTexts.size) { i -> translatedCache[sourceTexts[i]] ?: sourceTexts[i] }
                 if (missingTexts.isNotEmpty()) {
-                    val missingTranslated = translateWithRetry(missingTexts, translateChunk, metrics = metrics)
+                    val missingOut = translateWithRetry(missingTexts, translateChunk, metrics = metrics)
                     missingIndexes.forEachIndexed { missIdx, srcIdx ->
-                        val translatedText = missingTranslated.getOrNull(missIdx) ?: return@forEachIndexed
+                        val translatedText = missingOut.texts.getOrNull(missIdx) ?: return@forEachIndexed
                         translatedCache[sourceTexts[srcIdx]] = translatedText
                         part[srcIdx] = translatedText
+                        missingOut.nc?.getOrNull(missIdx)?.let { nc ->
+                            needCorrectCache?.set(sourceTexts[srcIdx], nc)
+                        }
                     }
                 }
                 doneCount.addAndGet(chunk.size)
@@ -226,11 +311,14 @@ object TranslationService {
                             val (sourceTexts, missingIndexes, missingTexts) = buildPart(chunk)
                             val part = MutableList(sourceTexts.size) { i -> translatedCache[sourceTexts[i]] ?: sourceTexts[i] }
                             if (missingTexts.isNotEmpty()) {
-                                val missingTranslated = translateWithRetry(missingTexts, translateChunk, metrics = metrics)
+                                val missingOut = translateWithRetry(missingTexts, translateChunk, metrics = metrics)
                                 missingIndexes.forEachIndexed { missIdx, srcIdx ->
-                                    val translatedText = missingTranslated.getOrNull(missIdx) ?: return@forEachIndexed
+                                    val translatedText = missingOut.texts.getOrNull(missIdx) ?: return@forEachIndexed
                                     translatedCache[sourceTexts[srcIdx]] = translatedText
                                     part[srcIdx] = translatedText
+                                    missingOut.nc?.getOrNull(missIdx)?.let { nc ->
+                                        needCorrectCache?.set(sourceTexts[srcIdx], nc)
+                                    }
                                 }
                             }
                             val done = doneCount.addAndGet(chunk.size)
@@ -246,16 +334,26 @@ object TranslationService {
         }
 
         onProgressUpdate(1f, progressMessage(totalSegments, totalSegments))
-        return results.flatten()
+        val translations = results.flatten()
+        val flags = if (
+            collectNeedCorrectFlags &&
+            (translationEngine == TranslationEngine.OPENAI || translationEngine == TranslationEngine.GEMINI) &&
+            needCorrectCache != null
+        ) {
+            segments.map { seg -> needCorrectCache[seg.text] == true }
+        } else {
+            null
+        }
+        return SegmentTranslationOutcome(translations = translations, sourceNeedsRelaxedTermCorrection = flags)
     }
 
     private suspend fun translateWithRetry(
         sourceTexts: List<String>,
-        translateChunk: suspend (texts: List<String>) -> List<String>,
+        translateChunk: suspend (texts: List<String>) -> TranslationChunkOutput,
         maxRetries: Int = 1,
         splitDepth: Int = 0,
         metrics: TranslationMetrics,
-    ): List<String> {
+    ): TranslationChunkOutput {
         val uniqueTexts = LinkedHashMap<String, MutableList<Int>>()
         sourceTexts.forEachIndexed { i, text ->
             uniqueTexts.getOrPut(text) { mutableListOf() }.add(i)
@@ -273,16 +371,30 @@ object TranslationService {
 
                 val uniqueTranslated = translateChunk(uniqueKeys)
 
-                if (uniqueTranslated.size != uniqueKeys.size) {
-                    throw IllegalStateException("模型返回条数不一致 (请求 ${uniqueKeys.size} 条，返回 ${uniqueTranslated.size} 条)")
+                if (uniqueTranslated.texts.size != uniqueKeys.size) {
+                    throw IllegalStateException(
+                        JvmResourceStrings.text(
+                            Res.string.err_llm_count_mismatch,
+                            uniqueKeys.size,
+                            uniqueTranslated.texts.size,
+                        ),
+                    )
                 }
 
                 val part = MutableList(sourceTexts.size) { sourceTexts[it] }
+                val flagsPart = MutableList(sourceTexts.size) { false }
                 uniqueTexts.entries.forEachIndexed { uIdx, (_, indexes) ->
-                    val translatedText = uniqueTranslated[uIdx]
-                    indexes.forEach { srcIdx -> part[srcIdx] = translatedText }
+                    val translatedText = uniqueTranslated.texts[uIdx]
+                    val flag = uniqueTranslated.nc?.getOrNull(uIdx) ?: false
+                    indexes.forEach { srcIdx ->
+                        part[srcIdx] = translatedText
+                        flagsPart[srcIdx] = flag
+                    }
                 }
-                return part
+                return TranslationChunkOutput(
+                    texts = part,
+                    nc = uniqueTranslated.nc?.let { flagsPart },
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -298,7 +410,13 @@ object TranslationService {
             val left = translateWithRetry(leftPart, translateChunk, maxRetries = 0, splitDepth = splitDepth + 1, metrics = metrics)
             val right = translateWithRetry(rightPart, translateChunk, maxRetries = 0, splitDepth = splitDepth + 1, metrics = metrics)
 
-            return left + right
+            return TranslationChunkOutput(
+                texts = left.texts + right.texts,
+                nc = when {
+                    left.nc != null && right.nc != null -> left.nc + right.nc
+                    else -> null
+                },
+            )
         }
 
         if (lastError != null) throw lastError

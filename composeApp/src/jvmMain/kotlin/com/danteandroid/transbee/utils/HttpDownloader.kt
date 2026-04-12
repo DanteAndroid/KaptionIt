@@ -3,6 +3,11 @@ package com.danteandroid.transbee.utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_download_failed
+import transbee.composeapp.generated.resources.err_download_http
+import transbee.composeapp.generated.resources.log_network_io_retry
+import transbee.composeapp.generated.resources.log_ssl_handshake_retry
 import java.io.File
 import java.net.URI
 import java.net.http.HttpClient
@@ -48,16 +53,30 @@ object HttpDownloader {
             } catch (e: javax.net.ssl.SSLHandshakeException) {
                 lastException = e
                 val delaySec = (attempt + 1) * 2L
-                println("⚠ SSL 握手失败（第 ${attempt + 1} 次），${delaySec}s 后重试: ${e.message}")
+                TransbeeLog.verbose {
+                    JvmResourceStrings.text(
+                        Res.string.log_ssl_handshake_retry,
+                        attempt + 1,
+                        delaySec,
+                        e.message.orEmpty(),
+                    )
+                }
                 delay(delaySec * 1000)
             } catch (e: java.io.IOException) {
                 lastException = e
                 val delaySec = (attempt + 1) * 2L
-                println("⚠ 网络IO异常（第 ${attempt + 1} 次），${delaySec}s 后重试: ${e.message}")
+                TransbeeLog.verbose {
+                    JvmResourceStrings.text(
+                        Res.string.log_network_io_retry,
+                        attempt + 1,
+                        delaySec,
+                        e.message.orEmpty(),
+                    )
+                }
                 delay(delaySec * 1000)
             }
         }
-        throw lastException ?: error("下载失败")
+        throw lastException ?: error(JvmResourceStrings.text(Res.string.err_download_failed))
     }
 
     private fun doDownload(
@@ -89,7 +108,7 @@ object HttpDownloader {
         if (code !in 200..299) {
             runCatching { part.delete() }
             runCatching { response.body()?.close() }
-            error("文件下载失败（HTTP $code）")
+            error(JvmResourceStrings.text(Res.string.err_download_http, code))
         }
 
         val contentLength = response.headers().firstValue("Content-Length")

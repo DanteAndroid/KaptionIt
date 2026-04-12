@@ -7,5 +7,6 @@ enum class TranslationEngine {
     APPLE,
     GOOGLE,
     DEEPL,
+    GEMINI,
     OPENAI,
 }

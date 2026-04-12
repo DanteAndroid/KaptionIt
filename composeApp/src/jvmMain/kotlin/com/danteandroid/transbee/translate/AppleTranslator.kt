@@ -1,6 +1,7 @@
 package com.danteandroid.transbee.translate
 
 import com.danteandroid.transbee.native.BundledNativeTools
+import com.danteandroid.transbee.utils.JvmResourceStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -13,6 +14,16 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
+import transbee.composeapp.generated.resources.Res
+import transbee.composeapp.generated.resources.err_apple_translate_failed_code
+import transbee.composeapp.generated.resources.err_apple_translate_json_parse
+import transbee.composeapp.generated.resources.err_apple_translate_missing
+import transbee.composeapp.generated.resources.err_apple_translate_output_empty
+import transbee.composeapp.generated.resources.err_apple_translate_pending
+import transbee.composeapp.generated.resources.err_json_root_not_object
+import transbee.composeapp.generated.resources.err_translate_failed_reason
+import transbee.composeapp.generated.resources.err_translate_result_invalid
+import transbee.composeapp.generated.resources.err_translation_no_response
 
 class AppleTranslator(
     private val binaryPath: String,
@@ -34,7 +45,7 @@ class AppleTranslator(
         }
         val bin = File(binaryPath)
         if (!bin.isFile) {
-            error("找不到本机翻译组件。")
+            error(JvmResourceStrings.text(Res.string.err_apple_translate_missing))
         }
         val inFile = Files.createTempFile("transbee_apple_in_", ".json")
         val outFile = Files.createTempFile("transbee_apple_out_", ".json")
@@ -68,19 +79,17 @@ class AppleTranslator(
             val parsed = parseAppleTranslateOutput(outText, code)
             parsed.error?.let { err ->
                 if (err == "pending") {
-                    error(
-                        "Apple 翻译未完成：输出仍为占位（pending），SwiftUI 翻译未执行或未覆盖结果。退出码 $code。请确认系统翻译权限与本机语言设置，或换用其他翻译引擎。",
-                    )
+                    error(JvmResourceStrings.text(Res.string.err_apple_translate_pending, code))
                 } else {
-                    error("翻译失败：$err")
+                    error(JvmResourceStrings.text(Res.string.err_translate_failed_reason, err))
                 }
             }
             val tr = parsed.translations
             if (tr == null || tr.size != texts.size) {
-                error("翻译结果异常，请重试。")
+                error(JvmResourceStrings.text(Res.string.err_translate_result_invalid))
             }
             if (code != 0) {
-                error("Apple 本机翻译失败（错误码 $code），请重试。")
+                error(JvmResourceStrings.text(Res.string.err_apple_translate_failed_code, code))
             }
             tr
         } finally {
@@ -109,9 +118,7 @@ class AppleTranslator(
     private fun parseAppleTranslateOutput(raw: String, exitCode: Int): AppleTranslateOutput {
         val trimmed = raw.trim().removePrefix("\uFEFF")
         if (trimmed.isEmpty()) {
-            error(
-                "Apple 本机翻译输出文件仍为空（子进程退出码 $exitCode）。多为进程崩溃、被强杀或磁盘写入失败；请从 Gradle 重新运行以同步 AppleTranslate，或检查可执行路径与权限。",
-            )
+            error(JvmResourceStrings.text(Res.string.err_apple_translate_output_empty, exitCode))
         }
         try {
             return json.decodeFromString(AppleTranslateOutput.serializer(), trimmed)
@@ -120,9 +127,12 @@ class AppleTranslator(
                 return parseAppleOutputLenient(trimmed)
             } catch (e2: Exception) {
                 error(
-                    "解析 Apple 翻译 JSON 失败：${e.message}。宽松解析：${e2.message}。原始前 500 字符：${
-                        trimmed.take(500)
-                    }",
+                    JvmResourceStrings.text(
+                        Res.string.err_apple_translate_json_parse,
+                        e.message ?: e.toString(),
+                        e2.message ?: e2.toString(),
+                        trimmed.take(500),
+                    ),
                 )
             }
         }
@@ -131,7 +141,7 @@ class AppleTranslator(
     private fun parseAppleOutputLenient(trimmed: String): AppleTranslateOutput {
         val root = json.parseToJsonElement(trimmed)
         val obj = root as? JsonObject
-            ?: error("根节点不是 JSON 对象")
+            ?: error(JvmResourceStrings.text(Res.string.err_json_root_not_object))
         val err = obj["error"]?.jsonPrimitive?.contentOrNull
             ?: obj["Error"]?.jsonPrimitive?.contentOrNull
         val arrEl = obj["translations"] ?: obj["Translations"]
@@ -163,7 +173,7 @@ class AppleTranslator(
             process.destroyForcibly()
             waiter.interrupt()
             waiter.join(3000)
-            error("Apple 本机翻译超时（超过 ${timeoutMs / 1000} 秒），请重试。")
+            error(JvmResourceStrings.text(Res.string.err_translation_no_response))
         }
         return exitHolder[0]
     }
