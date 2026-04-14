@@ -55,7 +55,32 @@ private data class TranslationChunkOutput(
     val nc: List<Boolean>?,
 )
 
+private data class TranslationChunkRequest(
+    val texts: List<String>,
+    val contexts: List<LlmSubtitleContext> = emptyList(),
+    val cacheKeys: List<String> = texts,
+)
+
+private data class IndexedSegmentLine(
+    val text: String,
+    val context: LlmSubtitleContext?,
+    val cacheKey: String,
+)
+
 object TranslationService {
+
+    internal fun buildSubtitleContext(
+        segments: List<TranscriptSegment>,
+        index: Int,
+    ): LlmSubtitleContext = LlmSubtitleContext(
+        prev2 = segments.getOrNull(index - 2)?.text,
+        prev = segments.getOrNull(index - 1)?.text,
+        next = segments.getOrNull(index + 1)?.text,
+        next2 = segments.getOrNull(index + 2)?.text,
+    )
+
+    internal fun buildLlmCacheKey(text: String, context: LlmSubtitleContext): String =
+        listOf(text, context.prev2, context.prev, context.next, context.next2).joinToString("\u241F") { it.orEmpty() }
 
     suspend fun translateSegments(
         cfg: ToolingSettings,
@@ -96,11 +121,11 @@ object TranslationService {
                     segments = segments,
                     chunkSize = 6,
                     metrics = metrics,
-                    translateChunk = { texts ->
+                    translateChunk = { request ->
                         try {
                             TranslationChunkOutput(
                                 texts = translator.translateBatch(
-                                    texts = texts,
+                                    texts = request.texts,
                                     sourceAppleLocale = appleSource,
                                     targetAppleLocale = appleTarget,
                                 ),
@@ -131,10 +156,10 @@ object TranslationService {
                     segments = segments,
                     chunkSize = 100,
                     metrics = metrics,
-                    translateChunk = { texts ->
+                    translateChunk = { request ->
                         TranslationChunkOutput(
                             texts = translator.translateBatch(
-                                texts = texts,
+                                texts = request.texts,
                                 targetGoogleCode = googleTarget,
                             ),
                             nc = null,
@@ -159,10 +184,10 @@ object TranslationService {
                     segments = segments,
                     chunkSize = TranslationChunkSizeOpenAiStyle,
                     metrics = metrics,
-                    translateChunk = { texts ->
+                    translateChunk = { request ->
                         TranslationChunkOutput(
                             texts = translator.translateBatch(
-                                texts = texts,
+                                texts = request.texts,
                                 targetDeepL = deeplTarget,
                             ),
                             nc = null,
@@ -189,10 +214,11 @@ object TranslationService {
                     segments = segments,
                     chunkSize = TranslationChunkSizeOpenAiStyle,
                     metrics = metrics,
-                    translateChunk = { texts ->
+                    translateChunk = { request ->
                         val batch = translator.translateBatch(
-                            texts = texts,
+                            texts = request.texts,
                             targetLanguage = cfg.targetLanguage,
+                            contexts = request.contexts,
                         )
                         TranslationChunkOutput(
                             texts = batch.texts,
@@ -221,10 +247,11 @@ object TranslationService {
                     segments = segments,
                     chunkSize = TranslationChunkSizeOpenAiStyle,
                     metrics = metrics,
-                    translateChunk = { texts ->
+                    translateChunk = { request ->
                         val batch = translator.translateBatch(
-                            texts = texts,
+                            texts = request.texts,
                             targetLanguage = cfg.targetLanguage,
+                            contexts = request.contexts,
                         )
                         TranslationChunkOutput(
                             texts = batch.texts,
@@ -247,14 +274,24 @@ object TranslationService {
         segments: List<TranscriptSegment>,
         chunkSize: Int,
         metrics: TranslationMetrics,
-        translateChunk: suspend (texts: List<String>) -> TranslationChunkOutput,
+        translateChunk: suspend (request: TranslationChunkRequest) -> TranslationChunkOutput,
         progressMessage: (done: Int, total: Int) -> String,
         concurrency: Int = 1,
         onProgressUpdate: (progress: Float, message: String) -> Unit,
         translationEngine: TranslationEngine,
         collectNeedCorrectFlags: Boolean = false,
     ): SegmentTranslationOutcome {
-        val chunks = segments.chunked(chunkSize)
+        val contextAwareCache = translationEngine == TranslationEngine.OPENAI || translationEngine == TranslationEngine.GEMINI
+        val indexedLines = segments.mapIndexed { index, segment ->
+            val context = if (contextAwareCache) buildSubtitleContext(segments, index) else null
+            val cacheKey = if (context != null) buildLlmCacheKey(segment.text, context) else segment.text
+            IndexedSegmentLine(
+                text = segment.text,
+                context = context,
+                cacheKey = cacheKey,
+            )
+        }
+        val chunks = indexedLines.chunked(chunkSize)
         val totalSegments = segments.size
         val translatedCache = java.util.concurrent.ConcurrentHashMap<String, String>()
         val needCorrectCache = if (
@@ -267,31 +304,42 @@ object TranslationService {
         }
         val doneCount = AtomicInteger(0)
 
-        fun buildPart(chunk: List<TranscriptSegment>): Triple<List<String>, List<Int>, List<String>> {
+        fun buildPart(chunk: List<IndexedSegmentLine>): Triple<List<String>, List<Int>, TranslationChunkRequest> {
             val sourceTexts = chunk.map { it.text }
-            val missingTexts = mutableListOf<String>()
+            val cacheKeys = chunk.map { it.cacheKey }
             val missingIndexes = mutableListOf<Int>()
-            sourceTexts.forEachIndexed { srcIdx, src ->
-                if (!translatedCache.containsKey(src)) {
-                    missingTexts.add(src)
+            val missingTexts = mutableListOf<String>()
+            val missingContexts = mutableListOf<LlmSubtitleContext>()
+            cacheKeys.forEachIndexed { srcIdx, key ->
+                if (!translatedCache.containsKey(key)) {
                     missingIndexes.add(srcIdx)
+                    missingTexts.add(sourceTexts[srcIdx])
+                    chunk[srcIdx].context?.let { missingContexts.add(it) }
                 }
             }
-            return Triple(sourceTexts, missingIndexes, missingTexts)
+            return Triple(
+                sourceTexts,
+                missingIndexes,
+                TranslationChunkRequest(
+                    texts = missingTexts,
+                    contexts = if (missingContexts.size == missingTexts.size) missingContexts else emptyList(),
+                    cacheKeys = missingIndexes.map { cacheKeys[it] },
+                ),
+            )
         }
 
         val results = if (concurrency <= 1) {
             chunks.map { chunk ->
-                val (sourceTexts, missingIndexes, missingTexts) = buildPart(chunk)
-                val part = MutableList(sourceTexts.size) { i -> translatedCache[sourceTexts[i]] ?: sourceTexts[i] }
-                if (missingTexts.isNotEmpty()) {
-                    val missingOut = translateWithRetry(missingTexts, translateChunk, metrics = metrics)
+                val (sourceTexts, missingIndexes, missingRequest) = buildPart(chunk)
+                val part = MutableList(sourceTexts.size) { i -> translatedCache[chunk[i].cacheKey] ?: sourceTexts[i] }
+                if (missingRequest.texts.isNotEmpty()) {
+                    val missingOut = translateWithRetry(missingRequest, translateChunk, metrics = metrics)
                     missingIndexes.forEachIndexed { missIdx, srcIdx ->
                         val translatedText = missingOut.texts.getOrNull(missIdx) ?: return@forEachIndexed
-                        translatedCache[sourceTexts[srcIdx]] = translatedText
+                        translatedCache[chunk[srcIdx].cacheKey] = translatedText
                         part[srcIdx] = translatedText
                         missingOut.nc?.getOrNull(missIdx)?.let { nc ->
-                            needCorrectCache?.set(sourceTexts[srcIdx], nc)
+                            needCorrectCache?.set(chunk[srcIdx].cacheKey, nc)
                         }
                     }
                 }
@@ -305,19 +353,19 @@ object TranslationService {
         } else {
             val semaphore = Semaphore(concurrency)
             coroutineScope {
-                chunks.mapIndexed { idx, chunk ->
+                chunks.map { chunk ->
                     async {
                         semaphore.withPermit {
-                            val (sourceTexts, missingIndexes, missingTexts) = buildPart(chunk)
-                            val part = MutableList(sourceTexts.size) { i -> translatedCache[sourceTexts[i]] ?: sourceTexts[i] }
-                            if (missingTexts.isNotEmpty()) {
-                                val missingOut = translateWithRetry(missingTexts, translateChunk, metrics = metrics)
+                            val (sourceTexts, missingIndexes, missingRequest) = buildPart(chunk)
+                            val part = MutableList(sourceTexts.size) { i -> translatedCache[chunk[i].cacheKey] ?: sourceTexts[i] }
+                            if (missingRequest.texts.isNotEmpty()) {
+                                val missingOut = translateWithRetry(missingRequest, translateChunk, metrics = metrics)
                                 missingIndexes.forEachIndexed { missIdx, srcIdx ->
                                     val translatedText = missingOut.texts.getOrNull(missIdx) ?: return@forEachIndexed
-                                    translatedCache[sourceTexts[srcIdx]] = translatedText
+                                    translatedCache[chunk[srcIdx].cacheKey] = translatedText
                                     part[srcIdx] = translatedText
                                     missingOut.nc?.getOrNull(missIdx)?.let { nc ->
-                                        needCorrectCache?.set(sourceTexts[srcIdx], nc)
+                                        needCorrectCache?.set(chunk[srcIdx].cacheKey, nc)
                                     }
                                 }
                             }
@@ -340,7 +388,7 @@ object TranslationService {
             (translationEngine == TranslationEngine.OPENAI || translationEngine == TranslationEngine.GEMINI) &&
             needCorrectCache != null
         ) {
-            segments.map { seg -> needCorrectCache[seg.text] == true }
+            indexedLines.map { line -> needCorrectCache[line.cacheKey] == true }
         } else {
             null
         }
@@ -348,17 +396,17 @@ object TranslationService {
     }
 
     private suspend fun translateWithRetry(
-        sourceTexts: List<String>,
-        translateChunk: suspend (texts: List<String>) -> TranslationChunkOutput,
+        request: TranslationChunkRequest,
+        translateChunk: suspend (request: TranslationChunkRequest) -> TranslationChunkOutput,
         maxRetries: Int = 1,
         splitDepth: Int = 0,
         metrics: TranslationMetrics,
     ): TranslationChunkOutput {
-        val uniqueTexts = LinkedHashMap<String, MutableList<Int>>()
-        sourceTexts.forEachIndexed { i, text ->
-            uniqueTexts.getOrPut(text) { mutableListOf() }.add(i)
+        val uniqueRequests = LinkedHashMap<String, MutableList<Int>>()
+        request.cacheKeys.forEachIndexed { i, key ->
+            uniqueRequests.getOrPut(key) { mutableListOf() }.add(i)
         }
-        val uniqueKeys = uniqueTexts.keys.toList()
+        val uniqueKeys = uniqueRequests.keys.toList()
 
         var lastError: Throwable? = null
         for (attempt in 0..maxRetries) {
@@ -369,7 +417,23 @@ object TranslationService {
                 }
                 metrics.requestCount.incrementAndGet()
 
-                val uniqueTranslated = translateChunk(uniqueKeys)
+                val uniqueTranslated = translateChunk(
+                    TranslationChunkRequest(
+                        texts = uniqueKeys.map { key ->
+                            val firstIndex = uniqueRequests.getValue(key).first()
+                            request.texts[firstIndex]
+                        },
+                        contexts = if (request.contexts.size == request.texts.size) {
+                            uniqueKeys.map { key ->
+                                val firstIndex = uniqueRequests.getValue(key).first()
+                                request.contexts[firstIndex]
+                            }
+                        } else {
+                            emptyList()
+                        },
+                        cacheKeys = uniqueKeys,
+                    ),
+                )
 
                 if (uniqueTranslated.texts.size != uniqueKeys.size) {
                     throw IllegalStateException(
@@ -381,9 +445,9 @@ object TranslationService {
                     )
                 }
 
-                val part = MutableList(sourceTexts.size) { sourceTexts[it] }
-                val flagsPart = MutableList(sourceTexts.size) { false }
-                uniqueTexts.entries.forEachIndexed { uIdx, (_, indexes) ->
+                val part = MutableList(request.texts.size) { request.texts[it] }
+                val flagsPart = MutableList(request.texts.size) { false }
+                uniqueRequests.entries.forEachIndexed { uIdx, (_, indexes) ->
                     val translatedText = uniqueTranslated.texts[uIdx]
                     val flag = uniqueTranslated.nc?.getOrNull(uIdx) ?: false
                     indexes.forEach { srcIdx ->
@@ -402,10 +466,22 @@ object TranslationService {
             }
         }
 
-        if (sourceTexts.size > 1 && splitDepth < 1) {
-            val mid = sourceTexts.size / 2
-            val leftPart = sourceTexts.subList(0, mid)
-            val rightPart = sourceTexts.subList(mid, sourceTexts.size)
+        if (request.texts.size > 1 && splitDepth < 1) {
+            val mid = request.texts.size / 2
+            val leftPart = TranslationChunkRequest(
+                texts = request.texts.subList(0, mid),
+                contexts = if (request.contexts.size == request.texts.size) request.contexts.subList(0, mid) else emptyList(),
+                cacheKeys = request.cacheKeys.subList(0, mid),
+            )
+            val rightPart = TranslationChunkRequest(
+                texts = request.texts.subList(mid, request.texts.size),
+                contexts = if (request.contexts.size == request.texts.size) {
+                    request.contexts.subList(mid, request.texts.size)
+                } else {
+                    emptyList()
+                },
+                cacheKeys = request.cacheKeys.subList(mid, request.cacheKeys.size),
+            )
 
             val left = translateWithRetry(leftPart, translateChunk, maxRetries = 0, splitDepth = splitDepth + 1, metrics = metrics)
             val right = translateWithRetry(rightPart, translateChunk, maxRetries = 0, splitDepth = splitDepth + 1, metrics = metrics)

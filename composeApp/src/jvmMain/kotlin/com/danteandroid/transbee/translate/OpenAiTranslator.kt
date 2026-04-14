@@ -45,6 +45,11 @@ data class LlmCompletionPayload(
     val finishReason: String?,
 )
 
+private data class UniqueSubtitleUnit(
+    val text: String,
+    val context: LlmSubtitleContext?,
+)
+
 @Serializable
 data class IndexedSubtitleLine(
     val id: Int,
@@ -244,7 +249,11 @@ open class OpenAiTranslator(
     private fun hasUnrestoredPlaceholders(text: String): Boolean =
         "\u27E6P" in text && "\u27E7" in text
 
-    suspend fun translateBatch(texts: List<String>, targetLanguage: String): OpenAiBatchTranslateResult =
+    suspend fun translateBatch(
+        texts: List<String>,
+        targetLanguage: String,
+        contexts: List<LlmSubtitleContext> = emptyList(),
+    ): OpenAiBatchTranslateResult =
         withContext(Dispatchers.IO) {
             if (texts.isEmpty()) return@withContext OpenAiBatchTranslateResult(emptyList(), emptyList())
             val out = MutableList(texts.size) { texts[it] }
@@ -264,8 +273,9 @@ open class OpenAiTranslator(
                     }
                     apiIndices.add(i)
                     apiTexts.add(protected)
+                    val explicitContext = contexts.getOrNull(i)
                     apiContexts.add(
-                        LlmSubtitleContext(
+                        explicitContext ?: LlmSubtitleContext(
                             prev2 = texts.getOrNull(i - 2),
                             prev = texts.getOrNull(i - 1),
                             next = texts.getOrNull(i + 1),
@@ -277,25 +287,24 @@ open class OpenAiTranslator(
             if (apiTexts.isEmpty()) {
                 return@withContext OpenAiBatchTranslateResult(out, outNc)
             }
-            // 同批去重：相同输入只翻一次，同时保留首次出现的上下文
-            val uniqueOrder = LinkedHashMap<String, MutableList<Int>>()
-            val uniqueContexts = LinkedHashMap<String, LlmSubtitleContext>()
+            // 同批去重：仅当文本和上下文都相同才复用，避免短句在不同语境下误复用译文
+            val uniqueOrder = LinkedHashMap<UniqueSubtitleUnit, MutableList<Int>>()
             apiTexts.forEachIndexed { j, p ->
-                uniqueOrder.getOrPut(p.text) { mutableListOf() }.add(j)
-                if (p.text !in uniqueContexts) uniqueContexts[p.text] = apiContexts[j]
+                uniqueOrder.getOrPut(UniqueSubtitleUnit(text = p.text, context = apiContexts[j])) { mutableListOf() }.add(j)
             }
-            val uniqueTexts = uniqueOrder.keys.toList()
-            val uniqueCtxList = uniqueTexts.map { uniqueContexts[it]!! }
+            val uniqueUnits = uniqueOrder.keys.toList()
+            val uniqueTexts = uniqueUnits.map { it.text }
+            val uniqueCtxList = uniqueUnits.mapNotNull { it.context }.takeIf { it.size == uniqueUnits.size } ?: emptyList()
 
             val parsedUnique = translateBatchCore(uniqueTexts, targetLanguage, uniqueCtxList)
 
             // 先填回（未做 QA/重试）
             val translatedProtected = MutableList(apiTexts.size) { apiTexts[it].text }
             val ncProtected = MutableList(apiTexts.size) { false }
-            uniqueTexts.forEachIndexed { k, key ->
-                val valText = parsedUnique.texts.getOrElse(k) { key }
+            uniqueUnits.forEachIndexed { k, unit ->
+                val valText = parsedUnique.texts.getOrElse(k) { unit.text }
                 val valNc = parsedUnique.nc.getOrElse(k) { false }
-                uniqueOrder[key]?.forEach { j ->
+                uniqueOrder[unit]?.forEach { j ->
                     translatedProtected[j] = valText
                     ncProtected[j] = valNc
                 }
