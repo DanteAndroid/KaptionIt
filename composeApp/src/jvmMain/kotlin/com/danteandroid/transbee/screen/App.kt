@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.danteandroid.transbee.AppLanguage
 import com.danteandroid.transbee.AppLocale
@@ -137,10 +138,12 @@ fun App(topWindowInset: Dp = 0.dp) {
                 val sidebarTargetVisible = isWideEnough && tooling.sidebarExpanded
                 val sidebarVisibilityState = remember { MutableTransitionState(sidebarTargetVisible) }
                 sidebarVisibilityState.targetState = sidebarTargetVisible
-                // 首帧 maxWidth 常从 0 变到真实值，侧栏若用 expandHorizontally 会像整窗/底部被撑开；首次出现改为无动画，之后折叠再展开仍有过渡
+                // 首帧 maxWidth 常从 0 变到真实值，侧栏若用 expandHorizontally 会像整窗/底部被撑开；
+                // 仅跳过应用首帧的进入动画，之后无论用户何时展开都保留过渡。
                 var sidebarVisibilityMotionEnabled by remember { mutableStateOf(false) }
-                LaunchedEffect(sidebarTargetVisible) {
-                    if (sidebarTargetVisible) sidebarVisibilityMotionEnabled = true
+                LaunchedEffect(Unit) {
+                    withFrameNanos { }
+                    sidebarVisibilityMotionEnabled = true
                 }
                 val currentMaxWidth = maxWidth
                 Row(Modifier.fillMaxSize()) {
@@ -632,4 +635,3 @@ private fun TranslationServiceDialog(
         confirmButton = {},
     )
 }
-

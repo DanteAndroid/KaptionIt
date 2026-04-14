@@ -1,107 +1,91 @@
 # Transbee
 
-[English](#english) | [中文](#chinese)
+[English](#english) | [中文](#中文)
 
 ## English
 
-Transbee is a desktop app for speech-to-text, translation, bilingual subtitle export (SRT, VTT, TXT),
-and document recognition and translation (PDF and more). It combines transcription, multi-engine
-translation, and flexible export in one workflow—broadly capable and versatile, for everyday audio/video
-and documents as well as workflows that need consistent terminology.
+Transbee is a desktop app for speech-to-text, translation, bilingual subtitle export, and document OCR/translation. It brings transcription, multi-engine translation, terminology-aware correction, and flexible export together in a single workflow.
 
 ### Features
 
-- Transcription: based on [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli`), with optional VAD (voice activity detection) for better segmentation  
-- Professional glossary & correction: an AI-powered correction system—fast and efficient  
-- Translation: Apple Translate (macOS, native on-device), Google, DeepL, Google Gemini, and custom LLM APIs compatible with the OpenAI protocol  
-- Document processing: recognition and translation for PDF and other formats (document recognition services can be integrated)  
-- Export: subtitle formats (SRT, VTT, TXT) and content options (source / translation / bilingual)
+- Transcription: powered by [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli`), with optional VAD (voice activity detection) for cleaner segmentation
+- Translation correction: glossary-based correction helps improve subtitle quality and maintain terminology consistency
+- Translation: supports Apple Translate (native on-device on macOS), Google, DeepL, Gemini, and custom LLM APIs compatible with the OpenAI protocol
+- Document processing: supports document recognition and translation for PDF and other formats
+- Export: supports subtitle formats such as `SRT`, `VTT`, and `TXT`, with source / translation / bilingual output options
 
-### Tech stack
+### Tech Stack
 
 - [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/) (Desktop / JVM)
 
-### Run and build
+### Run
 
 ```bash
 ./gradlew :composeApp:run
 ```
 
-Generate installers:
+### Build
 
 ```bash
 ./gradlew :composeApp:packageDistributionForCurrentOS
 ```
 
-### Troubleshooting
+### macOS Note
 
-#### macOS Build Failure (AppleTranslate)
-
-If you encounter an error like `Process 'command 'swift'' finished with non-zero exit value 1` during `:composeApp:buildAppleTranslateMac`, it is often due to a stale Swift build cache after moving or renaming the project directory.
-
-Solution: run the following command to clean the Swift package cache:
+If `:composeApp:buildAppleTranslateMac` fails after moving the project directory, clear the Swift build cache and retry:
 
 ```bash
 cd native/AppleTranslate && swift package clean && cd ../..
 ```
 
-Then retry the build.
-
 ### License
 
-This project is licensed under [CC BY-ND 4.0](https://creativecommons.org/licenses/by-nd/4.0/) (`[LICENSE](./LICENSE)`).
+[CC BY-ND 4.0](https://creativecommons.org/licenses/by-nd/4.0/). See [LICENSE](/Users/l/AI/Transbee/LICENSE).
 
-- You may view, clone, and redistribute unmodified copies with attribution.  
-- You may not distribute modified versions of this work (no forks that change the code and are published as derivatives under this license).
+- You may view, clone, and redistribute unmodified copies with attribution.
+- You may not distribute modified versions of this project.
 
 ---
 
 ## 中文
 
-Transbee 是一款桌面端应用，支持语音转文字、翻译、双语字幕导出 (SRT, VTT, TXT) 以及文档识别与翻译（PDF 等）。在一条工作流中整合转录、多引擎翻译与灵活导出，用途广、能力强，既适合日常音视频与文档，也胜任对术语一致有更高要求的工作。
+Transbee 是一款桌面端应用，支持语音转文字、翻译、双语字幕导出，以及文档识别与翻译。在一条工作流中整合转录、多引擎翻译、术语纠错与灵活导出。
 
 ### 功能特点
 
-- 转录：基于 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli`)，支持可选的 VAD（语音活动检测）以获得更好的断句效果。  
-- 专业词库纠错功能：AI 智能纠错系统，高效快速。  
-- 翻译：Apple 翻译（macOS 原生离线）、Google、DeepL、Google Gemini，以及兼容 OpenAI 协议的自定义大模型 API。  
-- 文档处理：支持 PDF 等多种文档格式的识别与翻译（可接入文档识别服务）。  
-- 导出：支持多种字幕格式 (SRT, VTT, TXT) 及内容选择（原文 / 译文 / 双语）。
+- 转录：基于 [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli`) 进行音视频转写，并支持可选 VAD（语音活动检测）以优化断句效果
+- 翻译纠错：支持基于术语表的纠错与术语一致性控制，提升字幕翻译质量
+- 翻译：支持 Apple Translate（macOS 原生离线）、Google、DeepL、Gemini，以及兼容 OpenAI 协议的自定义大模型 API
+- 文档处理：支持 PDF 等文档的识别与翻译流程
+- 导出：支持 `SRT`、`VTT`、`TXT` 等字幕格式，并支持原文 / 译文 / 双语等输出形式
 
 ### 技术栈
 
 - [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/) (Desktop / JVM)
 
-### 运行与构建
+### 运行
 
 ```bash
 ./gradlew :composeApp:run
 ```
 
-生成安装包：
+### 打包
 
 ```bash
 ./gradlew :composeApp:packageDistributionForCurrentOS
 ```
 
-### 常见问题排查
+### macOS 提示
 
-#### macOS 构建失败 (AppleTranslate)
-
-如果在执行 `:composeApp:buildAppleTranslateMac` 时遇到 `Process 'command 'swift'' finished with non-zero exit value 1` 错误，通常是因为移动或重命名了项目目录导致 Swift 构建缓存失效。
-
-解决方法：执行以下命令清理 Swift 包缓存：
+如果在移动项目目录后执行 `:composeApp:buildAppleTranslateMac` 失败，通常是 Swift 构建缓存失效。先清缓存再重试：
 
 ```bash
 cd native/AppleTranslate && swift package clean && cd ../..
 ```
 
-然后重新尝试构建。
+### 许可
 
-### 开源许可
+项目采用 [CC BY-ND 4.0](https://creativecommons.org/licenses/by-nd/4.0/)，见 [LICENSE](/Users/l/AI/Transbee/LICENSE)。
 
-本项目采用 [CC BY-ND 4.0](https://creativecommons.org/licenses/by-nd/4.0/) 许可协议 (`[LICENSE](./LICENSE)`)。
-
-- 您可以阅读、克隆并在保持署名的前提下重新分发未经修改的副本。  
-- 您不得分发此作品的修改版本（即不支持发布修改代码后的衍生版本）。
-
+- 允许在保留署名的前提下阅读、克隆和分发未经修改的副本。
+- 不允许分发修改后的项目版本。
