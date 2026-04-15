@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="#english"><img src="screenshot.png" alt="Screenshot" width="528" height="512"></a>
+</p>
+
 # Transbee
 
 [English](#english) | [中文](#中文)
