@@ -161,10 +161,13 @@ p {
 }
 
 .meta-inline {
-  margin-top: 0;
+  margin: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  align-self: center;
   min-height: 48px;
+  line-height: 1;
   white-space: nowrap;
 }
 

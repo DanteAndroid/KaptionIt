@@ -22,7 +22,7 @@
 
     <header class="hero">
       <div class="hero-copy">
-        <h1 data-i18n="title">清晰输入，轻松输出。</h1>
+        <h1 data-i18n-html="title">清晰输入，<br>轻松输出。</h1>
         <p class="lead" data-i18n="lead">
           把视频、录音和文档整理成准确、自然、易分享的双语内容。
         </p>
@@ -35,7 +35,7 @@
           >
             下载 Transbee
           </a>
-          <p class="meta meta-inline" id="version-text" data-i18n="versionLine">版本 1.1.1</p>
+          <span class="meta meta-inline" id="version-text" data-i18n="versionLine">版本 1.1.1</span>
         </div>
       </div>
       <div class="screenshot-card">
@@ -99,6 +99,7 @@
       var button = document.getElementById("download-button");
       var localeButtons = Array.prototype.slice.call(document.querySelectorAll(".locale-button"));
       var translatables = Array.prototype.slice.call(document.querySelectorAll("[data-i18n]"));
+      var translatableHtml = Array.prototype.slice.call(document.querySelectorAll("[data-i18n-html]"));
       var screenshot = document.getElementById("app-screenshot");
       var locale = "zh";
       var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
@@ -108,7 +109,7 @@
 
       var copy = {
         zh: {
-          title: "清晰输入，轻松输出。",
+          title: "清晰输入，<br>轻松输出。",
           lead: "把视频、录音和文档整理成准确、自然、易分享的双语内容。",
           downloadGeneric: "下载 Transbee",
           downloadMac: "下载 macOS 版",
@@ -135,7 +136,7 @@
           screenshotAlt: "Transbee 应用截图"
         },
         en: {
-          title: "Clear in. Clear out.",
+          title: "Clear in.<br>Clear out.",
           lead: "Turn video, audio, and documents into bilingual content that feels natural and ready to share.",
           downloadGeneric: "Download Transbee",
           downloadMac: "Download for macOS",
@@ -177,6 +178,11 @@
         translatables.forEach(function (node) {
           var key = node.getAttribute("data-i18n");
           node.textContent = copy[nextLocale][key];
+        });
+
+        translatableHtml.forEach(function (node) {
+          var key = node.getAttribute("data-i18n-html");
+          node.innerHTML = copy[nextLocale][key];
         });
 
         screenshot.alt = copy[nextLocale].screenshotAlt;
