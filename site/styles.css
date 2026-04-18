@@ -49,7 +49,7 @@ a {
   display: inline-flex;
   align-items: center;
   min-height: 42px;
-  font-size: 1.4rem;
+  font-size: 2.8rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -99,7 +99,7 @@ a {
 
 h1 {
   margin: 0;
-  font-size: clamp(2.7rem, 6.2vw, 5.2rem);
+  font-size: clamp(2.5rem, 5.8vw, 4.9rem);
   line-height: 0.98;
   letter-spacing: -0.04em;
 }
