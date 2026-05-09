@@ -63,3 +63,8 @@ native/bundled/whisper-win
 native/bundled/.whisper-src
 native/bundled/.whisper-build
 /native/bundled/ffmpeg.exe
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
