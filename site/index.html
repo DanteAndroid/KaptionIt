@@ -4,16 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Transbee</title>
-  <meta
-    name="description"
-    content="Transbee 帮你把视频、录音和文档整理成清晰的双语内容。"
-  >
+  <meta name="description" content="Transbee 帮你把视频、录音和文档整理成清晰的双语内容。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+
+  <div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
   <div class="site-shell">
+
     <header class="topbar">
-      <div class="brand">Transbee</div>
+      <div class="brand">
+        <img class="brand-icon" src="./app_icon.png" alt="" aria-hidden="true">
+        <span class="brand-name">Transbee</span>
+      </div>
       <div class="locale-switch" role="group" aria-label="Language switch">
         <button class="locale-button is-active" data-locale="zh" type="button">中文</button>
         <button class="locale-button" data-locale="en" type="button">EN</button>
@@ -22,144 +33,161 @@
 
     <header class="hero">
       <div class="hero-copy">
-        <h1 data-i18n-html="title">清晰输入，<br>轻松输出。</h1>
+        <h1 data-i18n-html="title">一键输入，<br><span class="accent-text">轻松输出。</span></h1>
         <p class="lead" data-i18n="lead">
-          把视频、录音和文档整理成准确、自然、易分享的双语内容。
+          把视频、音频和文档翻译成准确、自然的双语内容。
         </p>
         <div class="hero-actions">
+          <div class="primary-download">
+            <a
+              id="pan-download-button"
+              class="button button-primary"
+              href="https://pan.quark.cn/s/89c9b4752082"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span data-i18n="panDownload">网盘下载</span>
+            </a>
+            <span class="version-tag" id="version-text" data-i18n="versionLine">版本 1.1.1</span>
+          </div>
           <a
             id="download-button"
-            class="button button-primary"
+            class="button-link"
             href="https://github.com/DanteAndroid/Transbee/releases/download/v1.1.1/Transbee-1.1.1.dmg"
-            data-i18n="downloadGeneric"
           >
-            下载 Transbee
+            <span data-i18n="directDownload">直链下载</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
           </a>
-          <span class="meta meta-inline" id="version-text" data-i18n="versionLine">版本 1.1.1</span>
         </div>
       </div>
-      <div class="screenshot-card">
-        <img src="./screenshot.png" alt="Transbee screenshot" id="app-screenshot">
+      <div class="hero-visual">
+        <div class="floating-pill pill-left" data-i18n="pill1">语音转写</div>
+        <div class="screenshot-card">
+          <img src="./screenshot.png" alt="Transbee screenshot" id="app-screenshot">
+        </div>
+        <div class="floating-pill pill-right" data-i18n="pill2">双语导出</div>
       </div>
     </header>
 
     <main>
       <section class="section">
         <div class="section-heading">
-          <p class="eyebrow" data-i18n="useCasesEyebrow">适合这些人</p>
-          <h2 data-i18n="useCasesTitle">为需要处理语言内容的人而设计</h2>
+          <h2 class="section-title" data-i18n="useCasesEyebrow">适合这些场景</h2>
         </div>
         <div class="feature-grid">
           <article class="feature-card">
-            <h3 data-i18n="card1Title">医生与诊所</h3>
-            <p data-i18n="card1Body">更轻松地整理访谈、讲座和录音内容，方便查阅与分享。</p>
+            <div class="card-icon">🎙️</div>
+            <h3 data-i18n="card1Title">会议录音转写</h3>
           </article>
           <article class="feature-card">
-            <h3 data-i18n="card2Title">律师与顾问</h3>
-            <p data-i18n="card2Body">把视频、录音和文件内容整理成清晰文本，减少重复劳动。</p>
+            <div class="card-icon">📝</div>
+            <h3 data-i18n="card2Title">采访访谈整理</h3>
           </article>
           <article class="feature-card">
-            <h3 data-i18n="card3Title">老师与研究者</h3>
-            <p data-i18n="card3Body">更快准备课程材料、采访记录和双语学习内容。</p>
+            <div class="card-icon">📚</div>
+            <h3 data-i18n="card3Title">课程讲座笔记</h3>
           </article>
           <article class="feature-card">
-            <h3 data-i18n="card4Title">创作者与表演者</h3>
-            <p data-i18n="card4Body">让字幕、文稿和跨语言表达变得更简单自然。</p>
+            <div class="card-icon">🎬</div>
+            <h3 data-i18n="card4Title">视频字幕制作</h3>
           </article>
         </div>
       </section>
 
       <section class="section">
         <div class="section-heading">
-          <p class="eyebrow" data-i18n="benefitsEyebrow">三件事，一次完成</p>
-          <h2 data-i18n="benefitsTitle">从原始材料到双语成品</h2>
+          <h2 class="section-title" data-i18n="benefitsEyebrow">三件事，一次完成</h2>
         </div>
         <div class="benefit-grid">
           <div class="benefit-item">
+            <div class="benefit-num">01</div>
             <strong data-i18n="benefit1Title">转成文字</strong>
             <span data-i18n="benefit1Body">让语音与视频内容更容易阅读、查找和整理。</span>
           </div>
           <div class="benefit-item">
+            <div class="benefit-num">02</div>
             <strong data-i18n="benefit2Title">翻译内容</strong>
             <span data-i18n="benefit2Body">用更自然的方式理解另一种语言。</span>
           </div>
           <div class="benefit-item">
+            <div class="benefit-num">03</div>
             <strong data-i18n="benefit3Title">导出成品</strong>
             <span data-i18n="benefit3Body">字幕与文本都能轻松保存，方便后续使用。</span>
           </div>
         </div>
       </section>
     </main>
+
+    <footer class="footer">
+      <p>© <span id="copyright-year">2025</span> Transbee &nbsp;·&nbsp; All rights reserved.</p>
+    </footer>
+
   </div>
 
   <script>
     (function () {
       var version = "1.1.1";
       var base = "https://github.com/DanteAndroid/Transbee/releases/download/v" + version + "/";
-      var button = document.getElementById("download-button");
+      var directButton = document.getElementById("download-button");
       var localeButtons = Array.prototype.slice.call(document.querySelectorAll(".locale-button"));
       var translatables = Array.prototype.slice.call(document.querySelectorAll("[data-i18n]"));
       var translatableHtml = Array.prototype.slice.call(document.querySelectorAll("[data-i18n-html]"));
       var screenshot = document.getElementById("app-screenshot");
+      var yearEl = document.getElementById("copyright-year");
       var locale = "zh";
       var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
       var ua = navigator.userAgent || "";
       var isWindows = /Win/i.test(platform) || /Windows/i.test(ua);
-      var isMac = /Mac/i.test(platform) || /Macintosh|Mac OS X/i.test(ua);
+
+      if (yearEl) yearEl.textContent = new Date().getFullYear();
 
       var copy = {
         zh: {
-          title: "清晰输入，<br>轻松输出。",
-          lead: "把视频、录音和文档整理成准确、自然、易分享的双语内容。",
-          downloadGeneric: "下载 Transbee",
-          downloadMac: "下载 macOS 版",
-          downloadWindows: "下载 Windows 版",
+          title: "一键输入，<br><span class=\"accent-text\">轻松输出。</span>",
+          lead: "把视频、音频和文档翻译成准确、自然的双语内容。",
+          panDownload: "网盘下载",
+          directDownload: "直链下载",
           versionLine: "版本 " + version,
-          useCasesEyebrow: "适合这些人",
-          useCasesTitle: "为需要处理语言内容的人而设计",
-          card1Title: "医生与诊所",
-          card1Body: "更轻松地整理访谈、讲座和录音内容，方便查阅与分享。",
-          card2Title: "律师与顾问",
-          card2Body: "把视频、录音和文件内容整理成清晰文本，减少重复劳动。",
-          card3Title: "老师与研究者",
-          card3Body: "更快准备课程材料、采访记录和双语学习内容。",
-          card4Title: "创作者与表演者",
-          card4Body: "让字幕、文稿和跨语言表达变得更简单自然。",
+          pill1: "语音转写",
+          pill2: "双语导出",
+          useCasesEyebrow: "适合这些场景",
+          card1Title: "会议录音转写",
+          card2Title: "采访访谈整理",
+          card3Title: "课程讲座笔记",
+          card4Title: "视频字幕制作",
           benefitsEyebrow: "三件事，一次完成",
-          benefitsTitle: "从原始材料到双语成品",
           benefit1Title: "转成文字",
-          benefit1Body: "让语音与视频内容更容易阅读、查找和整理。",
+          benefit1Body: "音视频直接转为文字。",
           benefit2Title: "翻译内容",
-          benefit2Body: "用更自然的方式理解另一种语言。",
+          benefit2Body: "翻译成各国语言。",
           benefit3Title: "导出成品",
-          benefit3Body: "字幕与文本都能轻松保存，方便后续使用。",
+          benefit3Body: "支持 srt、txt、md 等格式。",
           screenshotAlt: "Transbee 应用截图"
         },
         en: {
-          title: "Clear in.<br>Clear out.",
+          title: "One input.<br><span class=\"accent-text\">Clear output.</span>",
           lead: "Turn video, audio, and documents into bilingual content that feels natural and ready to share.",
-          downloadGeneric: "Download Transbee",
-          downloadMac: "Download for macOS",
-          downloadWindows: "Download for Windows",
+          panDownload: "Cloud Drive",
+          directDownload: "Direct Download",
           versionLine: "Version " + version,
-          useCasesEyebrow: "Made for people at work",
-          useCasesTitle: "Designed for people who work with language every day",
-          card1Title: "Doctors and clinics",
-          card1Body: "Organize interviews, lectures, and recordings with less effort and more clarity.",
-          card2Title: "Lawyers and advisors",
-          card2Body: "Turn video, audio, and documents into clean text without repetitive manual work.",
-          card3Title: "Teachers and researchers",
-          card3Body: "Prepare lessons, interviews, and bilingual materials more quickly.",
-          card4Title: "Creators and performers",
-          card4Body: "Make subtitles, scripts, and multilingual communication feel simple.",
+          pill1: "Transcribe",
+          pill2: "Bilingual export",
+          useCasesEyebrow: "Made for these scenarios",
+          card1Title: "Meeting transcription",
+          card2Title: "Interview notes",
+          card3Title: "Lecture notes",
+          card4Title: "Subtitle creation",
           benefitsEyebrow: "Three steps, one flow",
-          benefitsTitle: "From source material to bilingual output",
           benefit1Title: "Transcribe",
-          benefit1Body: "Make spoken content easier to read, search, and organize.",
+          benefit1Body: "Turn audio and video directly into text.",
           benefit2Title: "Translate",
-          benefit2Body: "Understand another language in a more natural way.",
+          benefit2Body: "Translate into languages around the world.",
           benefit3Title: "Export",
-          benefit3Body: "Save subtitles and text for whatever comes next.",
+          benefit3Body: "Export srt, txt, md, and more.",
           screenshotAlt: "Transbee app screenshot"
         }
       };
@@ -167,7 +195,6 @@
       function applyLocale(nextLocale) {
         locale = nextLocale;
         document.documentElement.lang = nextLocale === "zh" ? "zh-CN" : "en";
-        document.title = "Transbee";
         document.querySelector('meta[name="description"]').setAttribute(
           "content",
           nextLocale === "zh"
@@ -177,7 +204,9 @@
 
         translatables.forEach(function (node) {
           var key = node.getAttribute("data-i18n");
-          node.textContent = copy[nextLocale][key];
+          if (copy[nextLocale][key] !== undefined) {
+            node.textContent = copy[nextLocale][key];
+          }
         });
 
         translatableHtml.forEach(function (node) {
@@ -188,24 +217,12 @@
         screenshot.alt = copy[nextLocale].screenshotAlt;
 
         localeButtons.forEach(function (node) {
-          var active = node.getAttribute("data-locale") === nextLocale;
-          node.classList.toggle("is-active", active);
+          node.classList.toggle("is-active", node.getAttribute("data-locale") === nextLocale);
         });
 
-        if (isWindows) {
-          button.href = base + "Transbee.msi";
-          button.textContent = copy[nextLocale].downloadWindows;
-          return;
-        }
-
-        if (isMac) {
-          button.href = base + "Transbee-" + version + ".dmg";
-          button.textContent = copy[nextLocale].downloadMac;
-          return;
-        }
-
-        button.href = base + "Transbee-" + version + ".dmg";
-        button.textContent = copy[nextLocale].downloadGeneric;
+        directButton.href = isWindows
+          ? base + "Transbee.msi"
+          : base + "Transbee-" + version + ".dmg";
       }
 
       localeButtons.forEach(function (node) {
